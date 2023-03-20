@@ -1,7 +1,9 @@
 #include "cogni.h"
 
+#include <errno.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 #define POW2(x) ((x) * (x))
@@ -125,10 +127,55 @@ float w[]      = {10.45, -10, 0, -3.9, 0.33, -4.7};
 float b[]      = {3, 1, -5};
 
 float lr = 0.9f;
+typedef int error;
+
+error writeWeights(const char* path, const float* weights, size_t w_len, const float* bias, size_t b_len)
+{
+    FILE* fp = fopen(path, "w");
+    if (fp == 0)
+    {
+        fprintf(stderr, "could not open file '%s': %s", path, strerror(errno));
+        return 1;
+    }
+
+    for (size_t i = 0; i < w_len; i++)
+    {
+        fprintf(fp, "%f ", weights[i]);
+    }
+    fprintf(fp, "\n");
+    for (size_t i = 0; i < b_len; i++)
+    {
+        fprintf(fp, "%f ", bias[i]);
+    }
+    return 0;
+}
+
+error readWeights(const char* path, float* weights, size_t w_len, float* bias, size_t b_len)
+{
+    FILE* fp = fopen(path, "r");
+    if (fp == 0)
+    {
+        fprintf(stderr, "could not open file '%s': %s", path, strerror(errno));
+        return 1;
+    }
+
+    for (size_t i = 0; i < w_len; i++)
+    {
+        fscanf(fp, "%f ", &weights[i]);
+    }
+    fscanf(fp, "\n");
+    for (size_t i = 0; i < b_len; i++)
+    {
+        fscanf(fp, "%f ", &bias[i]);
+    }
+    return 0;
+}
 
 int main(int argc, char const* argv[])
 {
     // forward pass (prediction)
+
+    readWeights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
 
     float h1   = xs[0] * w[0] + xs[1] * w[1] + b[0];
     float h1_s = sigmoid(h1);
@@ -201,6 +248,7 @@ int main(int argc, char const* argv[])
     printArr(w, ARR_LEN(w), "weights");
     printArr(b, ARR_LEN(b), "bias");
 
+    writeWeights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
     return 0;
 }
 
