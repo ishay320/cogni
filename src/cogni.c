@@ -144,21 +144,26 @@ int main(int argc, char const* argv[])
 
     float d_w[6] = {0};
     float d_b[3] = {0};
-    for (size_t i = 0; i < 100; i++)
+    for (size_t i = 0; i < 1000; i++)
     {
         // global
         float d_mse = mse_deriv(y_true[0], prediction);
         // o1 derivatives
         {
-            d_w[4] = w[4] * sigmoid_deriv(o1) * d_mse;
-            d_w[5] = w[5] * sigmoid_deriv(o1) * d_mse;
+            d_w[4] = h1 * sigmoid_deriv(o1) * d_mse;
+            d_w[5] = h2 * sigmoid_deriv(o1) * d_mse;
             d_b[2] = 1 * sigmoid_deriv(o1) * d_mse;
         }
+
+        float d_w_4 = w[4] * sigmoid_deriv(o1) * d_mse;
+        float d_w_5 = w[5] * sigmoid_deriv(o1) * d_mse;
+        float d_b_1 = 1 * sigmoid_deriv(o1) * d_mse;
+
         // h1 derivatives
         {
-            d_w[0] = xs[0] * sigmoid_deriv(h1) * d_w[4];
-            d_w[1] = xs[1] * sigmoid_deriv(h1) * d_w[5];
-            d_b[0] = 1 * sigmoid_deriv(h1) * d_b[2];
+            d_w[0] = xs[0] * sigmoid_deriv(h1) * d_w_4;
+            d_w[1] = xs[1] * sigmoid_deriv(h1) * d_w_5;
+            d_b[0] = 1 * sigmoid_deriv(h1) * d_b_1;
         }
         // h2 derivatives
         {
