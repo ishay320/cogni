@@ -8,16 +8,15 @@
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 #define POW2(x) ((x) * (x))
 
-typedef struct
+float mse(float x, float y)
 {
-    float* weights;
-    size_t len;
-    float bias;
-} Layer;
+    return POW2(x - y);
+}
 
-float mse(float x, float y) { return POW2(x - y); }
-
-float mse_deriv(float truth, float pred) { return -2 * (truth - pred); }
+float mse_deriv(float truth, float pred)
+{
+    return -2 * (truth - pred);
+}
 
 float dot(const float* a, const float* b, size_t len)
 {
@@ -29,7 +28,10 @@ float dot(const float* a, const float* b, size_t len)
     return sum;
 }
 
-float sigmoid(float x) { return 1.f / (1.f + expf(-x)); }
+float sigmoid(float x)
+{
+    return 1.f / (1.f + expf(-x));
+}
 float sigmoid_deriv(float x)
 {
     float sig = sigmoid(x);
@@ -82,7 +84,8 @@ float make_prediction(float* input_vector, float* weights, size_t len, float bia
 }
 
 // output is: float derror_dbias, float* derror_dweights
-void compute_gradients(float* derror_dbias, float derror_dweights[], const float* input_vector, const float* weights, const size_t len, const float bias, const float target)
+void compute_gradients(float* derror_dbias, float derror_dweights[], const float* input_vector, const float* weights, const size_t len,
+                       const float bias, const float target)
 {
     // WIP
     float layer_1    = dot(input_vector, weights, len) + bias;
@@ -92,7 +95,7 @@ void compute_gradients(float* derror_dbias, float derror_dweights[], const float
     float derror_dprediction  = 2 * (prediction - target);
     float dprediction_dlayer1 = sigmoid_deriv(layer_1);
     float dlayer1_dbias       = 1;
-    float tmp1[len];  // can it work?!
+    float tmp1[len]; // can it work?!
     float tmp2[len];
     float* dlayer1_dweights = vector_add(vector_mult_scalar_to(tmp2, weights, len, 0), vector_mult_scalar_to(tmp1, input_vector, len, 1), len);
 
@@ -121,12 +124,6 @@ void printArr(float* arr, size_t len, char* name)
     printf("\n");
 }
 
-float xs[]     = {1.66, 1.56};
-float y_true[] = {1};
-float w[]      = {10.45, -10, 0, -3.9, 0.33, -4.7};
-float b[]      = {3, 1, -5};
-
-float lr = 0.9f;
 typedef int error;
 
 error writeWeights(const char* path, const float* weights, size_t w_len, const float* bias, size_t b_len)
@@ -171,7 +168,78 @@ error readWeights(const char* path, float* weights, size_t w_len, float* bias, s
     return 0;
 }
 
+typedef float (*activision)(float);
+typedef struct Neuron
+{
+    activision fun;
+    activision fun_derive;
+    float* w;
+    size_t w_len;
+    float* b;
+    float* out;
+} Neuron;
+
+typedef struct LinearLayer
+{
+    Neuron* n;
+    size_t len;
+} LinearLayer;
+
+typedef struct Model
+{
+    activision loss_fun;
+    activision loss_fun_derive;
+    LinearLayer* l;
+    size_t len;
+} Model;
+
+float linear(const float* w, const float* x, size_t len, float b)
+{
+    float sum = 0;
+    for (size_t i = 0; i < len; i++)
+    {
+        sum += w[i] * x[i];
+    }
+    sum += b;
+    return sum;
+}
+
+float linearForward(const Neuron* neuron, const float* x)
+{
+    *neuron->out = neuron->fun(linear(neuron->w, x, neuron->w_len, *(neuron->b)));
+    return *neuron->out;
+}
+
+float xs[]     = {1.66, 1.56};
+float y_true[] = {1};
+float h[]      = {0, 0, 0};
+float w[]      = {10.45, -10, 0, -3.9, 0.33, -4.7};
+float b[]      = {3, 1, -5};
+
+float lr = 0.9f;
+
 int main(int argc, char const* argv[])
+{
+    // read weights from file
+    readWeights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
+
+    // setup of neurons
+    Neuron h1 = {.fun = sigmoid, .fun_derive = sigmoid_deriv, .w = w + 0, .w_len = 2, .b = b + 0, .out = h + 0};
+    Neuron h2 = {.fun = sigmoid, .fun_derive = sigmoid_deriv, .w = w + 2, .w_len = 2, .b = b + 1, .out = h + 1};
+    Neuron o1 = {.fun = sigmoid, .fun_derive = sigmoid_deriv, .w = w + 4, .w_len = 2, .b = b + 2, .out = h + 2};
+
+    // forward pass (prediction)
+    linearForward(&h1, xs);
+    linearForward(&h2, xs);
+    linearForward(&o1, h);
+    printf("prediction: %f, truth: %f, mse: %f\n", h[2], y_true[0], mse(h[2], y_true[0]));
+
+    // backpropagation (training)
+
+    return 0;
+}
+
+int main2(int argc, char const* argv[])
 {
     // forward pass (prediction)
 
@@ -187,8 +255,8 @@ int main(int argc, char const* argv[])
     float prediction = o1_s;
     printf("prediction: %f, truth: %f, mse: %f\n", prediction, y_true[0], mse(prediction, y_true[0]));
 
-    // backpropogation (training)
-
+    // backpropagation (training)
+#if 1
     float d_w[6] = {0};
     float d_b[3] = {0};
     for (size_t i = 0; i < 1000; i++)
@@ -249,6 +317,7 @@ int main(int argc, char const* argv[])
     printArr(b, ARR_LEN(b), "bias");
 
     writeWeights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
+#endif
     return 0;
 }
 
