@@ -4,8 +4,9 @@ SOURCES=./src/cogni.c
 TARGET=cogni.a
 INCLUDE=-I./include
 LINK=-lm
+CFLAGS="-Wall -Wextra -pedantic"
 
-gcc $SOURCES $INCLUDE -o $TARGET $LINK
+gcc $CFLAGS $SOURCES $INCLUDE -o $TARGET $LINK
 
 if [[ $? == 0 ]]; then
     ./$TARGET
