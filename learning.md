@@ -13,9 +13,9 @@
 
 1. Every layer is liner layer means the its looks like
 
-   $$f(x) = (weight_1 * x_1) + (weight_2 * x_2) + bias$$
+   $$f(x) = (weight_1 \cdot x_1) + (weight_2 \cdot x_2) + bias$$
    `or`
-   $$f(x) = weight_1*x^2 + weight_2*x + bias$$
+   $$f(x) = weight_1\cdot x^2 + weight_2\cdot x + bias$$
 
 2. in between layers there is non linear function like `sigmoid` function but it needs to be differentiable
 
@@ -47,15 +47,21 @@ stateDiagram-v2
 ## Forward pass
 
 $$n_1(x_1,x_2) = x_1w_1 + x_2w_2  + b_1$$
+
 $$h_1 = f(n_1)$$
+
 $$n_2(x_1,x_2) = x_1w_4 + x_2w_3 + b_2$$
+
 $$h_2 = f(n_2)$$
+
 $$o_1(h_1,h_2) = h_1w_6 + h_2w_5 + b_3$$
+
 $$a_1 = f(o_1)$$
+
 $$mse(y_{true}, y_{pred}) = (y_{true} - a_1)^2$$
 
-> > on every layer there is an activision function:
-> > $$f(x) = sigmoid(x) = \frac{1}{1+e^{-x}}$$
+> on every layer there is an activision function:
+> $$f(x) = sigmoid(x) = \frac{1}{1+e^{-x}}$$
 
 ## Gradient descent
 
