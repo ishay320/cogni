@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
@@ -90,8 +91,8 @@ float make_prediction(float* input_vector, float* weights, size_t len, float bia
 }
 
 // output is: float derror_dbias, float* derror_dweights
-void compute_gradients(float* derror_dbias, float derror_dweights[], const float* input_vector, const float* weights, const size_t len,
-                       const float bias, const float target)
+void compute_gradients(float* derror_dbias, float derror_dweights[], const float* input_vector,
+                       const float* weights, const size_t len, const float bias, const float target)
 {
     // WIP
     float layer_1    = dot(input_vector, weights, len) + bias;
@@ -103,13 +104,16 @@ void compute_gradients(float* derror_dbias, float derror_dweights[], const float
     float dlayer1_dbias       = 1;
     float tmp1[len]; // can it work?!
     float tmp2[len];
-    float* dlayer1_dweights = vector_add(vector_mult_scalar_to(tmp2, weights, len, 0), vector_mult_scalar_to(tmp1, input_vector, len, 1), len);
+    float* dlayer1_dweights = vector_add(vector_mult_scalar_to(tmp2, weights, len, 0),
+                                         vector_mult_scalar_to(tmp1, input_vector, len, 1), len);
 
     *derror_dbias = (derror_dprediction * dprediction_dlayer1 * dlayer1_dbias);
-    vector_mult_scalar_to(derror_dweights, dlayer1_dweights, len, derror_dprediction * dprediction_dlayer1);
+    vector_mult_scalar_to(derror_dweights, dlayer1_dweights, len,
+                          derror_dprediction * dprediction_dlayer1);
 }
 
-void update_parameters(float* weights, float bias, float derror_dbias, float* derror_dweights, const size_t len, const float learning_rate)
+void update_parameters(float* weights, float bias, float derror_dbias, float* derror_dweights,
+                       const size_t len, const float learning_rate)
 {
     bias = bias - (derror_dbias * learning_rate);
 
@@ -132,7 +136,8 @@ void printArr(float* arr, size_t len, char* name)
 
 typedef int error;
 
-error writeWeights(const char* path, const float* weights, size_t w_len, const float* bias, size_t b_len)
+error writeWeights(const char* path, const float* weights, size_t w_len, const float* bias,
+                   size_t b_len)
 {
     FILE* fp = fopen(path, "w");
     if (fp == 0)
@@ -173,18 +178,78 @@ error readWeights(const char* path, float* weights, size_t w_len, float* bias, s
     }
     return 0;
 }
+/* the data that will be provided:
+    float x[];  // input
+    float w[];  // weights
+    float b[];  // biases
+    float dw[]; // weights derivatives
+    float db[]; // bias derivatives
+
+    the data that is not provided:
+    intermidiate derivatives
+    the neurons list
+
+
+! what about neuron output?
+ */
 
 typedef float (*activision)(float);
-typedef struct Neuron
+
+typedef struct _Neuron
 {
     activision fun;
     activision fun_derive;
+
+    // weights bias and inputs
     float* w;
-    float* input;
+    float* x;
     size_t w_len;
     float* b;
+
+    // derivatives
+    float base_derive;
+    float* dw;
+    float* db;
+
+    // outputs and inputs
     float* out;
+    struct _Neuron** input_neurons;
+    size_t input_neurons_len;
+    struct _Neuron** output_neurons;
+    size_t output_neurons_len;
 } Neuron;
+
+Neuron* initNeuron(float x[], float w[], float* b, float dw[], float* db, size_t len,
+                   activision fun, activision fun_derive, float* out)
+{
+    Neuron* neuron = (Neuron*)malloc(sizeof(Neuron));
+    if (neuron == 0)
+    {
+        fprintf(stderr, "[ERROR] Could not allocate memory for neuron.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    neuron->fun        = fun;
+    neuron->fun_derive = fun_derive;
+
+    neuron->w     = w;
+    neuron->x     = x;
+    neuron->w_len = len;
+    neuron->b     = b;
+    neuron->dw    = dw;
+    neuron->db    = db;
+
+    neuron->base_derive       = 0;
+    neuron->input_neurons_len = 0;
+
+    // still undefined
+    neuron->input_neurons_len  = 0;
+    neuron->output_neurons_len = 0;
+
+    neuron->out = out;
+
+    return neuron;
+}
 
 typedef struct LinearLayer
 {
@@ -212,18 +277,26 @@ float linear(const float* w, const float* x, size_t len, float b)
     return sum;
 }
 
-float linearForward(const Neuron* neuron)
+float linearForward(Neuron* neuron)
 {
-    *neuron->out = neuron->fun(linear(neuron->w, neuron->input, neuron->w_len, *(neuron->b)));
+    const float linear_out = linear(neuron->w, neuron->x, neuron->w_len, *(neuron->b));
+    const float activated  = neuron->fun(linear_out);
+    *neuron->out           = activated;
     return *neuron->out;
 }
 
+#define INPUTS_LEN 2
+#define NEURONS_LEN 3
+#define WEIGHTS_LEN (NEURONS_LEN * INPUTS_LEN)
+#define BIAS_LEN (WEIGHTS_LEN / INPUTS_LEN)
 // Setup the params
-float xs[]     = {1.66, 1.56};
-float y_true[] = {1};
-float h[]      = {0, 0, 0};
-float w[]      = {10.45, -10, 0, -3.9, 0.33, -4.7};
-float b[]      = {3, 1, -5};
+float xs[INPUTS_LEN]  = {1.66, 1.56};
+float y_true[]        = {1};
+float h[NEURONS_LEN]  = {0, 0, 0};
+float b[BIAS_LEN]     = {3, 1, -5};
+float w[WEIGHTS_LEN]  = {10.45, -10, 0, -3.9, 0.33, -4.7};
+float dw[WEIGHTS_LEN] = {0};
+float db[BIAS_LEN]    = {0};
 
 float lr = 0.9f;
 
@@ -232,18 +305,16 @@ int mine(int argc, char const* argv[])
     UNUSED(argc);
     UNUSED(argv);
 
-    // read weights from file
     readWeights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
 
-    // setup of neurons
-    Neuron h1 = {.fun = sigmoid, .fun_derive = sigmoid_deriv, .w = w + 0, .input = xs, .w_len = 2, .b = b + 0, .out = h + 0};
-    Neuron h2 = {.fun = sigmoid, .fun_derive = sigmoid_deriv, .w = w + 2, .input = xs, .w_len = 2, .b = b + 1, .out = h + 1};
-    Neuron o1 = {.fun = sigmoid, .fun_derive = sigmoid_deriv, .w = w + 4, .input = h, .w_len = 2, .b = b + 2, .out = h + 2};
+    Neuron* h1 = initNeuron(xs, w + 0, b + 0, dw, db, 2, sigmoid, sigmoid_deriv, h + 0);
+    Neuron* h2 = initNeuron(xs, w + 2, b + 1, dw, db, 2, sigmoid, sigmoid_deriv, h + 1);
+    Neuron* a1 = initNeuron(h, w + 4, b + 2, dw, db, 2, sigmoid, sigmoid_deriv, h + 2);
 
     // forward pass (prediction)
-    linearForward(&h1);
-    linearForward(&h2);
-    linearForward(&o1);
+    linearForward(h1);
+    linearForward(h2);
+    linearForward(a1);
     printf("prediction: %f, truth: %f, mse: %f\n", h[2], y_true[0], mse(h[2], y_true[0]));
 
     // backpropagation (training)
@@ -268,7 +339,8 @@ int reference(int argc, char const* argv[])
     float a1 = sigmoid(o1);
 
     const float prediction = a1;
-    printf("prediction: %f, truth: %f, mse: %f\n", prediction, y_true[0], mse(prediction, y_true[0]));
+    printf("prediction: %f, truth: %f, mse: %f\n", prediction, y_true[0],
+           mse(prediction, y_true[0]));
 
     // backpropagation (training)
 #if 1
@@ -325,7 +397,8 @@ int reference(int argc, char const* argv[])
         float a1 = sigmoid(o1);
 
         const float prediction = a1;
-        printf("prediction: %f, truth: %f, mse: %f\n", prediction, y_true[0], mse(prediction, y_true[0]));
+        printf("prediction: %f, truth: %f, mse: %f\n", prediction, y_true[0],
+               mse(prediction, y_true[0]));
 
         // printArr(w, ARR_LEN(w), "weights");
         // printArr(b, ARR_LEN(b), "bias");
