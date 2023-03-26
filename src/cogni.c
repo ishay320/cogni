@@ -18,12 +18,12 @@ float mse(float x, float y)
     return POW2(x - y);
 }
 
-float mse_deriv(float truth, float pred)
+float mseDeriv(float truth, float pred)
 {
     return -2 * (truth - pred);
 }
 
-float dot(const float* a, const float* b, size_t len)
+float vector_dot(const float* a, const float* b, size_t len)
 {
     float sum = 0;
     for (size_t i = 0; i < len; i++)
@@ -37,7 +37,8 @@ float sigmoid(float x)
 {
     return 1.f / (1.f + expf(-x));
 }
-float sigmoid_deriv(float x)
+
+float sigmoidDeriv(float x)
 {
     float sig = sigmoid(x);
     return sig * (1.f - sig);
@@ -82,47 +83,6 @@ float* vector_mult_scalar_to(float* out, const float* vec, size_t len, float sca
 // ******************************
 // ******* Neural related *******
 // ******************************
-
-float make_prediction(float* input_vector, float* weights, size_t len, float bias)
-{
-    float layer_1 = dot(input_vector, weights, len) + bias;
-    float layer_2 = sigmoid(layer_1);
-    return layer_2;
-}
-
-// output is: float derror_dbias, float* derror_dweights
-void compute_gradients(float* derror_dbias, float derror_dweights[], const float* input_vector,
-                       const float* weights, const size_t len, const float bias, const float target)
-{
-    // WIP
-    float layer_1    = dot(input_vector, weights, len) + bias;
-    float layer_2    = sigmoid(layer_1);
-    float prediction = layer_2;
-
-    float derror_dprediction  = 2 * (prediction - target);
-    float dprediction_dlayer1 = sigmoid_deriv(layer_1);
-    float dlayer1_dbias       = 1;
-    float tmp1[len]; // can it work?!
-    float tmp2[len];
-    float* dlayer1_dweights = vector_add(vector_mult_scalar_to(tmp2, weights, len, 0),
-                                         vector_mult_scalar_to(tmp1, input_vector, len, 1), len);
-
-    *derror_dbias = (derror_dprediction * dprediction_dlayer1 * dlayer1_dbias);
-    vector_mult_scalar_to(derror_dweights, dlayer1_dweights, len,
-                          derror_dprediction * dprediction_dlayer1);
-}
-
-void update_parameters(float* weights, float bias, float derror_dbias, float* derror_dweights,
-                       const size_t len, const float learning_rate)
-{
-    bias = bias - (derror_dbias * learning_rate);
-
-    float* we_err = vector_mult_scalar(derror_dweights, len, learning_rate);
-    for (size_t i = 0; i < len; i++)
-    {
-        weights[i] -= we_err[i];
-    }
-}
 
 void printArr(float* arr, size_t len, char* name)
 {
@@ -190,7 +150,8 @@ error readWeights(const char* path, float* weights, size_t w_len, float* bias, s
     the neurons list
 
 
-! what about neuron output?
+! what about neuron output? - its the responsibility of layer but its also needed in calculating
+                              grads - also partial gradients
  */
 
 typedef float (*activision)(float);
@@ -211,15 +172,11 @@ typedef struct _Neuron
     float* dw;
     float* db;
 
-    // outputs and inputs
+    // outputs
     float* out;
-    struct _Neuron** input_neurons;
-    size_t input_neurons_len;
-    struct _Neuron** output_neurons;
-    size_t output_neurons_len;
 } Neuron;
 
-Neuron* initNeuron(float x[], float w[], float* b, float dw[], float* db, size_t len,
+Neuron* neuronInit(float x[], float w[], float* b, float dw[], float* db, size_t len,
                    activision fun, activision fun_derive, float* out)
 {
     Neuron* neuron = (Neuron*)malloc(sizeof(Neuron));
@@ -239,16 +196,16 @@ Neuron* initNeuron(float x[], float w[], float* b, float dw[], float* db, size_t
     neuron->dw    = dw;
     neuron->db    = db;
 
-    neuron->base_derive       = 0;
-    neuron->input_neurons_len = 0;
-
-    // still undefined
-    neuron->input_neurons_len  = 0;
-    neuron->output_neurons_len = 0;
+    neuron->base_derive = 0;
 
     neuron->out = out;
 
     return neuron;
+}
+
+void neuronDestroy(Neuron* neuron)
+{
+    free(neuron);
 }
 
 typedef struct LinearLayer
@@ -279,7 +236,7 @@ float linear(const float* w, const float* x, size_t len, float b)
     return sum;
 }
 
-float linearForward(Neuron* neuron)
+float neuronForward(Neuron* neuron)
 {
     const float linear_out = linear(neuron->w, neuron->x, neuron->w_len, *(neuron->b));
     const float activated  = neuron->fun(linear_out);
@@ -287,7 +244,7 @@ float linearForward(Neuron* neuron)
     return *neuron->out;
 }
 
-void backPropagate(Neuron* neuron, float part_derive)
+void neuronBackPropagate(Neuron* neuron, float part_derive)
 {
     neuron->base_derive = neuron->fun_derive(*neuron->out) * part_derive;
     for (size_t i = 0; i < neuron->w_len; i++)
@@ -297,7 +254,7 @@ void backPropagate(Neuron* neuron, float part_derive)
     *neuron->db = neuron->base_derive;
 }
 
-void calculatePartDerive(Neuron* neuron, float* part_derives)
+void neuronCalculatePartDerive(Neuron* neuron, float* part_derives)
 {
     for (size_t i = 0; i < neuron->w_len; i++)
     {
@@ -311,7 +268,7 @@ void applyDerives(float* w, float* dw, size_t w_len, float* b, float* db, size_t
     {
         w[i] -= lr * dw[i];
     }
-    
+
     for (size_t i = 0; i < b_len; i++)
     {
         b[i] -= lr * db[i];
@@ -341,14 +298,14 @@ int mine(int argc, char const* argv[])
 
     readWeights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
 
-    Neuron* h1 = initNeuron(xs, w + 0, b + 0, dw + 0, db + 0, 2, sigmoid, sigmoid_deriv, h + 0);
-    Neuron* h2 = initNeuron(xs, w + 2, b + 1, dw + 2, db + 1, 2, sigmoid, sigmoid_deriv, h + 1);
-    Neuron* a1 = initNeuron(h, w + 4, b + 2, dw + 4, db + 2, 2, sigmoid, sigmoid_deriv, h + 2);
+    Neuron* h1 = neuronInit(xs, w + 0, b + 0, dw + 0, db + 0, 2, sigmoid, sigmoidDeriv, h + 0);
+    Neuron* h2 = neuronInit(xs, w + 2, b + 1, dw + 2, db + 1, 2, sigmoid, sigmoidDeriv, h + 1);
+    Neuron* a1 = neuronInit(h, w + 4, b + 2, dw + 4, db + 2, 2, sigmoid, sigmoidDeriv, h + 2);
 
     // forward pass (prediction)
-    linearForward(h1);
-    linearForward(h2);
-    linearForward(a1);
+    neuronForward(h1);
+    neuronForward(h2);
+    neuronForward(a1);
     printf("prediction: %f, truth: %f, mse: %f\n", h[2], y_true[0], mse(h[2], y_true[0]));
 
 // backpropagation (training)
@@ -356,26 +313,30 @@ int mine(int argc, char const* argv[])
 
     for (size_t epoch = 0; epoch < epochs; epoch++)
     {
-        float d_mse = mse_deriv(y_true[0], h[2]);
+        float d_mse = mseDeriv(y_true[0], h[2]);
 
-        backPropagate(a1, d_mse);
+        neuronBackPropagate(a1, d_mse);
 
         float part_derive[2];
-        calculatePartDerive(a1, part_derive);
+        neuronCalculatePartDerive(a1, part_derive);
 
-        backPropagate(h1, part_derive[0]);
-        backPropagate(h2, part_derive[1]);
+        neuronBackPropagate(h1, part_derive[0]);
+        neuronBackPropagate(h2, part_derive[1]);
 
         // Apply the derives
         applyDerives(w, dw, ARR_LEN(w), b, db, ARR_LEN(b), lr);
 
         // forward pass (prediction)
-        linearForward(h1);
-        linearForward(h2);
-        linearForward(a1);
+        neuronForward(h1);
+        neuronForward(h2);
+        neuronForward(a1);
         printf("prediction: %f, truth: %f, mse: %f\n", h[2], y_true[0], mse(h[2], y_true[0]));
     }
 #endif
+
+    neuronDestroy(h1);
+    neuronDestroy(h2);
+    neuronDestroy(a1);
     return 0;
 }
 
@@ -405,29 +366,29 @@ int reference(int argc, char const* argv[])
     float d_b[3] = {0};
     for (size_t epoch = 0; epoch < epochs; epoch++)
     {
-        float d_mse = mse_deriv(y_true[0], prediction);
+        float d_mse = mseDeriv(y_true[0], prediction);
         // o1 derivatives
         {
-            const float base = sigmoid_deriv(a1) * d_mse;
+            const float base = sigmoidDeriv(a1) * d_mse;
             d_w[4]           = h1 * base;
             d_w[5]           = h2 * base;
             d_b[2]           = 1 * base;
         }
 
         // derivatives by h1 and h2
-        float d_w_4 = w[4] * sigmoid_deriv(a1) * d_mse;
-        float d_w_5 = w[5] * sigmoid_deriv(a1) * d_mse;
+        float d_w_4 = w[4] * sigmoidDeriv(a1) * d_mse;
+        float d_w_5 = w[5] * sigmoidDeriv(a1) * d_mse;
 
         // h1 derivatives
         {
-            const float base = sigmoid_deriv(h1) * d_w_4;
+            const float base = sigmoidDeriv(h1) * d_w_4;
             d_w[0]           = xs[0] * base;
             d_w[1]           = xs[1] * base;
             d_b[0]           = 1 * base;
         }
         // h2 derivatives
         {
-            const float base = sigmoid_deriv(h2) * d_w_5;
+            const float base = sigmoidDeriv(h2) * d_w_5;
             d_w[2]           = xs[0] * base;
             d_w[3]           = xs[1] * base;
             d_b[1]           = 1 * base;
