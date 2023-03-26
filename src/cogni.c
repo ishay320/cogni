@@ -254,6 +254,8 @@ Neuron* initNeuron(float x[], float w[], float* b, float dw[], float* db, size_t
 typedef struct LinearLayer
 {
     Neuron** n;
+    float* outputs;
+    float* part_derive;
     size_t len;
     struct LinearLayer* last_layer;
 } LinearLayer;
@@ -285,6 +287,37 @@ float linearForward(Neuron* neuron)
     return *neuron->out;
 }
 
+void backPropagate(Neuron* neuron, float part_derive)
+{
+    neuron->base_derive = neuron->fun_derive(*neuron->out) * part_derive;
+    for (size_t i = 0; i < neuron->w_len; i++)
+    {
+        neuron->dw[i] = neuron->base_derive * neuron->x[i];
+    }
+    *neuron->db = neuron->base_derive;
+}
+
+void calculatePartDerive(Neuron* neuron, float* part_derives)
+{
+    for (size_t i = 0; i < neuron->w_len; i++)
+    {
+        part_derives[i] = neuron->base_derive * neuron->w[i];
+    }
+}
+
+void applyDerives(float* w, float* dw, size_t w_len, float* b, float* db, size_t b_len, float lr)
+{
+    for (size_t i = 0; i < w_len; i++)
+    {
+        w[i] -= lr * dw[i];
+    }
+    
+    for (size_t i = 0; i < b_len; i++)
+    {
+        b[i] -= lr * db[i];
+    }
+}
+
 #define INPUTS_LEN 2
 #define NEURONS_LEN 3
 #define WEIGHTS_LEN (NEURONS_LEN * INPUTS_LEN)
@@ -298,7 +331,8 @@ float w[WEIGHTS_LEN]  = {10.45, -10, 0, -3.9, 0.33, -4.7};
 float dw[WEIGHTS_LEN] = {0};
 float db[BIAS_LEN]    = {0};
 
-float lr = 0.9f;
+float lr            = 0.9f;
+const size_t epochs = 2;
 
 int mine(int argc, char const* argv[])
 {
@@ -307,9 +341,9 @@ int mine(int argc, char const* argv[])
 
     readWeights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
 
-    Neuron* h1 = initNeuron(xs, w + 0, b + 0, dw, db, 2, sigmoid, sigmoid_deriv, h + 0);
-    Neuron* h2 = initNeuron(xs, w + 2, b + 1, dw, db, 2, sigmoid, sigmoid_deriv, h + 1);
-    Neuron* a1 = initNeuron(h, w + 4, b + 2, dw, db, 2, sigmoid, sigmoid_deriv, h + 2);
+    Neuron* h1 = initNeuron(xs, w + 0, b + 0, dw + 0, db + 0, 2, sigmoid, sigmoid_deriv, h + 0);
+    Neuron* h2 = initNeuron(xs, w + 2, b + 1, dw + 2, db + 1, 2, sigmoid, sigmoid_deriv, h + 1);
+    Neuron* a1 = initNeuron(h, w + 4, b + 2, dw + 4, db + 2, 2, sigmoid, sigmoid_deriv, h + 2);
 
     // forward pass (prediction)
     linearForward(h1);
@@ -317,9 +351,31 @@ int mine(int argc, char const* argv[])
     linearForward(a1);
     printf("prediction: %f, truth: %f, mse: %f\n", h[2], y_true[0], mse(h[2], y_true[0]));
 
-    // backpropagation (training)
-    // TODO: Implement this
+// backpropagation (training)
+#if 1
 
+    for (size_t epoch = 0; epoch < epochs; epoch++)
+    {
+        float d_mse = mse_deriv(y_true[0], h[2]);
+
+        backPropagate(a1, d_mse);
+
+        float part_derive[2];
+        calculatePartDerive(a1, part_derive);
+
+        backPropagate(h1, part_derive[0]);
+        backPropagate(h2, part_derive[1]);
+
+        // Apply the derives
+        applyDerives(w, dw, ARR_LEN(w), b, db, ARR_LEN(b), lr);
+
+        // forward pass (prediction)
+        linearForward(h1);
+        linearForward(h2);
+        linearForward(a1);
+        printf("prediction: %f, truth: %f, mse: %f\n", h[2], y_true[0], mse(h[2], y_true[0]));
+    }
+#endif
     return 0;
 }
 
@@ -344,7 +400,6 @@ int reference(int argc, char const* argv[])
 
     // backpropagation (training)
 #if 1
-    const size_t epochs = 20;
 
     float d_w[6] = {0};
     float d_b[3] = {0};
@@ -405,10 +460,10 @@ int reference(int argc, char const* argv[])
         // printArr(d_w, ARR_LEN(d_w), "d_weights");
         // printArr(d_b, ARR_LEN(d_b), "d_bias");
     }
-    printArr(w, ARR_LEN(w), "weights");
-    printArr(b, ARR_LEN(b), "bias");
+    // printArr(w, ARR_LEN(w), "weights");
+    // printArr(b, ARR_LEN(b), "bias");
 
-    writeWeights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
+    // writeWeights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
 #endif
     return 0;
 }
