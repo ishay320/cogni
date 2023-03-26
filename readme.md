@@ -1,4 +1,4 @@
-# cogniC
+# cogni.h
 
 ## Objectives
 
