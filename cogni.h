@@ -48,7 +48,7 @@ error writeWeights(const char* path, const float* weights, size_t w_len, const f
     FILE* fp = fopen(path, "w");
     if (fp == 0)
     {
-        fprintf(stderr, "could not open file '%s': %s", path, strerror(errno));
+        fprintf(stderr, "could not open file '%s': %s\n", path, strerror(errno));
         return 1;
     }
 
@@ -69,7 +69,7 @@ error readWeights(const char* path, float* weights, size_t w_len, float* bias, s
     FILE* fp = fopen(path, "r");
     if (fp == 0)
     {
-        fprintf(stderr, "could not open file '%s': %s", path, strerror(errno));
+        fprintf(stderr, "could not open file '%s': %s\n", path, strerror(errno));
         return 1;
     }
 
