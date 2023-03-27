@@ -1,6 +1,9 @@
+#define COGNI_IMPLEMENTATION
 #include "cogni.h"
 
 #include <string.h>
+
+#define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
 #define INPUTS_LEN 2
 #define NEURONS_LEN 3
@@ -21,65 +24,68 @@ const size_t epochs = 5;
 
 int mine(char* out)
 {
-    readWeights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
+    cog_read_weights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
 
-    Neuron* h1 = neuronInit(xs, w + 0, b + 0, dw + 0, db + 0, 2, sigmoid, sigmoidDeriv, h + 0);
-    Neuron* h2 = neuronInit(xs, w + 2, b + 1, dw + 2, db + 1, 2, sigmoid, sigmoidDeriv, h + 1);
-    Neuron* a1 = neuronInit(h, w + 4, b + 2, dw + 4, db + 2, 2, sigmoid, sigmoidDeriv, h + 2);
+    Neuron* h1 = cog_neuron_init(xs, w + 0, b + 0, dw + 0, db + 0, 2, cog_sigmoid,
+                                  cog_sigmoid_deriv, h + 0);
+    Neuron* h2 = cog_neuron_init(xs, w + 2, b + 1, dw + 2, db + 1, 2, cog_sigmoid,
+                                  cog_sigmoid_deriv, h + 1);
+    Neuron* a1 = cog_neuron_init(h, w + 4, b + 2, dw + 4, db + 2, 2, cog_sigmoid,
+                                  cog_sigmoid_deriv, h + 2);
 
     // forward pass (prediction)
-    neuronForward(h1);
-    neuronForward(h2);
-    neuronForward(a1);
+    cog_neuron_forward(h1);
+    cog_neuron_forward(h2);
+    cog_neuron_forward(a1);
     sprintf(out + strlen(out), "prediction: %f, truth: %f, mse: %f\n", h[2], y_true[0],
-            mse(h[2], y_true[0]));
+            cog_mse(h[2], y_true[0]));
 
     // backpropagation (training)
 
     for (size_t epoch = 0; epoch < epochs; epoch++)
     {
-        float d_mse = mseDeriv(y_true[0], h[2]);
+        float d_mse = cog_mse_deriv(y_true[0], h[2]);
 
-        neuronBackPropagate(a1, d_mse);
+        cog_neuron_backpropagate(a1, d_mse);
 
         float part_derive[2];
-        neuronCalculatePartDerive(a1, part_derive);
+        cog_neuron_part_derive(a1, part_derive);
 
-        neuronBackPropagate(h1, part_derive[0]);
-        neuronBackPropagate(h2, part_derive[1]);
+        cog_neuron_backpropagate(h1, part_derive[0]);
+        cog_neuron_backpropagate(h2, part_derive[1]);
 
         // Apply the derives
-        applyDerives(w, dw, ARR_LEN(w), b, db, ARR_LEN(b), lr);
+        cog_apply_derives(w, dw, ARR_LEN(w), b, db, ARR_LEN(b), lr);
 
         // forward pass (prediction)
-        neuronForward(h1);
-        neuronForward(h2);
-        neuronForward(a1);
+        cog_neuron_forward(h1);
+        cog_neuron_forward(h2);
+        cog_neuron_forward(a1);
         sprintf(out + strlen(out), "prediction: %f, truth: %f, mse: %f\n", h[2], y_true[0],
-                mse(h[2], y_true[0]));
+                cog_mse(h[2], y_true[0]));
     }
 
-    neuronDestroy(h1);
-    neuronDestroy(h2);
-    neuronDestroy(a1);
+    cog_neuron_destroy(h1);
+    cog_neuron_destroy(h2);
+    cog_neuron_destroy(a1);
     return 0;
 }
 
 int reference(char* out)
 {
-    readWeights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
+    cog_read_weights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
 
     // forward pass (prediction)
     float n1 = xs[0] * w[0] + xs[1] * w[1] + b[0];
-    float h1 = sigmoid(n1);
+    float h1 = cog_sigmoid(n1);
     float n2 = xs[0] * w[2] + xs[1] * w[3] + b[1];
-    float h2 = sigmoid(n2);
+    float h2 = cog_sigmoid(n2);
     float o1 = h1 * w[4] + h2 * w[5] + b[2];
-    float a1 = sigmoid(o1);
+    float a1 = cog_sigmoid(o1);
 
     const float prediction = a1;
     sprintf(out + strlen(out), "prediction: %f, truth: %f, mse: %f\n", prediction, y_true[0],
-            mse(prediction, y_true[0]));
+            cog_mse(prediction, y_true[0]));
 
     // backpropagation (training)
 
@@ -87,29 +93,29 @@ int reference(char* out)
     float d_b[3] = {0};
     for (size_t epoch = 0; epoch < epochs; epoch++)
     {
-        float d_mse = mseDeriv(y_true[0], prediction);
+        float d_mse = cog_mse_deriv(y_true[0], prediction);
         // o1 derivatives
         {
-            const float base = sigmoidDeriv(a1) * d_mse;
+            const float base = cog_sigmoid_deriv(a1) * d_mse;
             d_w[4]           = h1 * base;
             d_w[5]           = h2 * base;
             d_b[2]           = 1 * base;
         }
 
         // derivatives by h1 and h2
-        float d_w_4 = w[4] * sigmoidDeriv(a1) * d_mse;
-        float d_w_5 = w[5] * sigmoidDeriv(a1) * d_mse;
+        float d_w_4 = w[4] * cog_sigmoid_deriv(a1) * d_mse;
+        float d_w_5 = w[5] * cog_sigmoid_deriv(a1) * d_mse;
 
         // h1 derivatives
         {
-            const float base = sigmoidDeriv(h1) * d_w_4;
+            const float base = cog_sigmoid_deriv(h1) * d_w_4;
             d_w[0]           = xs[0] * base;
             d_w[1]           = xs[1] * base;
             d_b[0]           = 1 * base;
         }
         // h2 derivatives
         {
-            const float base = sigmoidDeriv(h2) * d_w_5;
+            const float base = cog_sigmoid_deriv(h2) * d_w_5;
             d_w[2]           = xs[0] * base;
             d_w[3]           = xs[1] * base;
             d_b[1]           = 1 * base;
@@ -127,15 +133,15 @@ int reference(char* out)
 
         // forward pass (prediction)
         float n1 = xs[0] * w[0] + xs[1] * w[1] + b[0];
-        float h1 = sigmoid(n1);
+        float h1 = cog_sigmoid(n1);
         float n2 = xs[0] * w[2] + xs[1] * w[3] + b[1];
-        float h2 = sigmoid(n2);
+        float h2 = cog_sigmoid(n2);
         float o1 = h1 * w[4] + h2 * w[5] + b[2];
-        float a1 = sigmoid(o1);
+        float a1 = cog_sigmoid(o1);
 
         const float prediction = a1;
         sprintf(out + strlen(out), "prediction: %f, truth: %f, mse: %f\n", prediction, y_true[0],
-                mse(prediction, y_true[0]));
+                cog_mse(prediction, y_true[0]));
     }
     return 0;
 }

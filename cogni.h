@@ -1,3 +1,5 @@
+#ifndef COGNI_INCLUDE_H
+#define COGNI_INCLUDE_H
 
 #include <errno.h>
 #include <math.h>
@@ -5,85 +7,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
-#define POW2(x) ((x) * (x))
-#define UNUSED(var) (void)var
-
-float mse(float x, float y)
-{
-    return POW2(x - y);
-}
-
-float mseDeriv(float truth, float pred)
-{
-    return -2 * (truth - pred);
-}
-
-float sigmoid(float x)
-{
-    return 1.f / (1.f + expf(-x));
-}
-
-float sigmoidDeriv(float x)
-{
-    float sig = sigmoid(x);
-    return sig * (1.f - sig);
-}
-
-void printArr(float* arr, size_t len, char* name)
-{
-    printf("%s: ", name);
-    for (size_t j = 0; j < len; j++)
-    {
-        printf("%f,", arr[j]);
-    }
-    printf("\n");
-}
+#ifndef COGNI_DEF
+#ifdef COGNI_STATIC
+#define COGNI_DEF static
+#else
+#define COGNI_DEF extern
+#endif
+#endif
 
 typedef int error;
-
-error writeWeights(const char* path, const float* weights, size_t w_len, const float* bias,
-                   size_t b_len)
-{
-    FILE* fp = fopen(path, "w");
-    if (fp == 0)
-    {
-        fprintf(stderr, "could not open file '%s': %s\n", path, strerror(errno));
-        return 1;
-    }
-
-    for (size_t i = 0; i < w_len; i++)
-    {
-        fprintf(fp, "%f ", weights[i]);
-    }
-    fprintf(fp, "\n");
-    for (size_t i = 0; i < b_len; i++)
-    {
-        fprintf(fp, "%f ", bias[i]);
-    }
-    return 0;
-}
-
-error readWeights(const char* path, float* weights, size_t w_len, float* bias, size_t b_len)
-{
-    FILE* fp = fopen(path, "r");
-    if (fp == 0)
-    {
-        fprintf(stderr, "could not open file '%s': %s\n", path, strerror(errno));
-        return 1;
-    }
-
-    for (size_t i = 0; i < w_len; i++)
-    {
-        fscanf(fp, "%f ", &weights[i]);
-    }
-    fscanf(fp, "\n");
-    for (size_t i = 0; i < b_len; i++)
-    {
-        fscanf(fp, "%f ", &bias[i]);
-    }
-    return 0;
-}
 /* the data that will be provided:
     float x[];  // input
     float w[];  // weights
@@ -122,8 +54,109 @@ typedef struct _Neuron
     float* out;
 } Neuron;
 
-Neuron* neuronInit(float x[], float w[], float* b, float dw[], float* db, size_t len,
-                   activision fun, activision fun_derive, float* out)
+COGNI_DEF float cog_mse(float x, float y);
+COGNI_DEF float cog_mse_deriv(float truth, float pred);
+COGNI_DEF float cog_sigmoid(float x);
+COGNI_DEF float cog_sigmoid_deriv(float x);
+COGNI_DEF void cog_print_arr(float* arr, size_t len, char* name);
+COGNI_DEF error cog_write_weights(const char* path, const float* weights, size_t w_len,
+                                  const float* bias, size_t b_len);
+COGNI_DEF error cog_read_weights(const char* path, float* weights, size_t w_len, float* bias,
+                                 size_t b_len);
+COGNI_DEF Neuron* cog_neuron_init(float x[], float w[], float* b, float dw[], float* db, size_t len,
+                                  activision fun, activision fun_derive, float* out);
+COGNI_DEF void cog_neuron_destroy(Neuron* neuron);
+COGNI_DEF float cog_calculate_linear(const float* w, const float* x, size_t len, float b);
+COGNI_DEF float cog_neuron_forward(Neuron* neuron);
+COGNI_DEF void cog_neuron_backpropagate(Neuron* neuron, float part_derive);
+COGNI_DEF void cog_neuron_part_derive(Neuron* neuron, float* part_derives);
+COGNI_DEF void cog_apply_derives(float* w, float* dw, size_t w_len, float* b, float* db,
+                                 size_t b_len, float lr);
+
+#endif // COGNI_INCLUDE_H
+
+#ifdef COGNI_IMPLEMENTATION
+
+#define COGNI_POW2(x) ((x) * (x))
+#define UNUSED(var) (void)var
+
+COGNI_DEF float cog_mse(float x, float y)
+{
+    return COGNI_POW2(x - y);
+}
+
+COGNI_DEF float cog_mse_deriv(float truth, float pred)
+{
+    return -2 * (truth - pred);
+}
+
+COGNI_DEF float cog_sigmoid(float x)
+{
+    return 1.f / (1.f + expf(-x));
+}
+
+COGNI_DEF float cog_sigmoid_deriv(float x)
+{
+    float sig = cog_sigmoid(x);
+    return sig * (1.f - sig);
+}
+
+COGNI_DEF void cog_print_arr(float* arr, size_t len, char* name)
+{
+    printf("%s: ", name);
+    for (size_t j = 0; j < len; j++)
+    {
+        printf("%f,", arr[j]);
+    }
+    printf("\n");
+}
+
+COGNI_DEF error cog_write_weights(const char* path, const float* weights, size_t w_len,
+                                  const float* bias, size_t b_len)
+{
+    FILE* fp = fopen(path, "w");
+    if (fp == 0)
+    {
+        fprintf(stderr, "could not open file '%s': %s\n", path, strerror(errno));
+        return 1;
+    }
+
+    for (size_t i = 0; i < w_len; i++)
+    {
+        fprintf(fp, "%f ", weights[i]);
+    }
+    fprintf(fp, "\n");
+    for (size_t i = 0; i < b_len; i++)
+    {
+        fprintf(fp, "%f ", bias[i]);
+    }
+    return 0;
+}
+
+COGNI_DEF error cog_read_weights(const char* path, float* weights, size_t w_len, float* bias,
+                                 size_t b_len)
+{
+    FILE* fp = fopen(path, "r");
+    if (fp == 0)
+    {
+        fprintf(stderr, "could not open file '%s': %s\n", path, strerror(errno));
+        return 1;
+    }
+
+    for (size_t i = 0; i < w_len; i++)
+    {
+        fscanf(fp, "%f ", &weights[i]);
+    }
+    fscanf(fp, "\n");
+    for (size_t i = 0; i < b_len; i++)
+    {
+        fscanf(fp, "%f ", &bias[i]);
+    }
+    return 0;
+}
+
+COGNI_DEF Neuron* cog_neuron_init(float x[], float w[], float* b, float dw[], float* db, size_t len,
+                                  activision fun, activision fun_derive, float* out)
 {
     Neuron* neuron = (Neuron*)malloc(sizeof(Neuron));
     if (neuron == 0)
@@ -149,7 +182,7 @@ Neuron* neuronInit(float x[], float w[], float* b, float dw[], float* db, size_t
     return neuron;
 }
 
-void neuronDestroy(Neuron* neuron)
+COGNI_DEF void cog_neuron_destroy(Neuron* neuron)
 {
     free(neuron);
 }
@@ -171,7 +204,7 @@ typedef struct Model
     size_t len;
 } Model;
 
-float linear(const float* w, const float* x, size_t len, float b)
+COGNI_DEF float cog_calculate_linear(const float* w, const float* x, size_t len, float b)
 {
     float sum = 0;
     for (size_t i = 0; i < len; i++)
@@ -182,15 +215,16 @@ float linear(const float* w, const float* x, size_t len, float b)
     return sum;
 }
 
-float neuronForward(Neuron* neuron)
+COGNI_DEF float cog_neuron_forward(Neuron* neuron)
 {
-    const float linear_out = linear(neuron->w, neuron->x, neuron->w_len, *(neuron->b));
-    const float activated  = neuron->fun(linear_out);
-    *neuron->out           = activated;
+    const float linear_out =
+        cog_calculate_linear(neuron->w, neuron->x, neuron->w_len, *(neuron->b));
+    const float activated = neuron->fun(linear_out);
+    *neuron->out          = activated;
     return *neuron->out;
 }
 
-void neuronBackPropagate(Neuron* neuron, float part_derive)
+COGNI_DEF void cog_neuron_backpropagate(Neuron* neuron, float part_derive)
 {
     neuron->base_derive = neuron->fun_derive(*neuron->out) * part_derive;
     for (size_t i = 0; i < neuron->w_len; i++)
@@ -200,7 +234,7 @@ void neuronBackPropagate(Neuron* neuron, float part_derive)
     *neuron->db = neuron->base_derive;
 }
 
-void neuronCalculatePartDerive(Neuron* neuron, float* part_derives)
+COGNI_DEF void cog_neuron_part_derive(Neuron* neuron, float* part_derives)
 {
     for (size_t i = 0; i < neuron->w_len; i++)
     {
@@ -208,7 +242,8 @@ void neuronCalculatePartDerive(Neuron* neuron, float* part_derives)
     }
 }
 
-void applyDerives(float* w, float* dw, size_t w_len, float* b, float* db, size_t b_len, float lr)
+COGNI_DEF void cog_apply_derives(float* w, float* dw, size_t w_len, float* b, float* db,
+                                 size_t b_len, float lr)
 {
     for (size_t i = 0; i < w_len; i++)
     {
@@ -220,3 +255,5 @@ void applyDerives(float* w, float* dw, size_t w_len, float* b, float* db, size_t
         b[i] -= lr * db[i];
     }
 }
+
+#endif // COGNI_IMPLEMENTATION
