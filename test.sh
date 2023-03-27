@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
+set -e
 
-SOURCES=./compare_to_math.c
-TARGET=compare_to_math.a
+SOURCES=(./compare_to_math.c ./busses.c)
 BUILD=./build/
 INCLUDE=-I../
 LINK=-lm
@@ -10,8 +10,12 @@ CFLAGS="-Wall -Wextra -pedantic -g"
 cd tests || exit 1
 
 mkdir -p $BUILD
-gcc $CFLAGS $SOURCES $INCLUDE -o $BUILD$TARGET $LINK
+for FILE in "${SOURCES[@]}"; do
+    TARGET_NAME="$(basename "${FILE}" .c).a"
+    TARGETS+=("${TARGET_NAME}")
+    gcc ${CFLAGS} ${FILE} ${INCLUDE} -o "${BUILD}${TARGET_NAME}" ${LINK}
+done
 
-if [[ $? == 0 ]]; then
-    ./$BUILD$TARGET
-fi
+for FILE in "${TARGETS[@]}"; do
+    ./"${BUILD}${FILE}"
+done
