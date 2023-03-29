@@ -26,12 +26,12 @@ int mine(char* out)
 {
     cog_read_weights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
 
-    Neuron* h1 =
-        cog_neuron_init(xs, w + 0, b + 0, dw + 0, db + 0, 2, cog_sigmoid, cog_sigmoid_deriv, h + 0);
-    Neuron* h2 =
-        cog_neuron_init(xs, w + 2, b + 1, dw + 2, db + 1, 2, cog_sigmoid, cog_sigmoid_deriv, h + 1);
-    Neuron* a1 =
-        cog_neuron_init(h, w + 4, b + 2, dw + 4, db + 2, 2, cog_sigmoid, cog_sigmoid_deriv, h + 2);
+    Neuron* h1 = cog_neuron_init_m(xs, w + 0, b + 0, dw + 0, db + 0, 2, cog_sigmoid,
+                                   cog_sigmoid_deriv, h + 0);
+    Neuron* h2 = cog_neuron_init_m(xs, w + 2, b + 1, dw + 2, db + 1, 2, cog_sigmoid,
+                                   cog_sigmoid_deriv, h + 1);
+    Neuron* a1 = cog_neuron_init_m(h, w + 4, b + 2, dw + 4, db + 2, 2, cog_sigmoid,
+                                   cog_sigmoid_deriv, h + 2);
 
     // forward pass (prediction)
     cog_neuron_forward(h1);

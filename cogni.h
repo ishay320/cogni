@@ -54,6 +54,15 @@ typedef struct _Neuron
     float* out;
 } Neuron;
 
+typedef struct Layer
+{
+    Neuron* neurons;
+    float* outputs;
+    float* part_derive;
+    size_t len;
+    struct Layer* last_layer;
+} Layer;
+
 COGNI_DEF float cog_mse(float x, float y);
 COGNI_DEF float cog_mse_deriv(float truth, float pred);
 COGNI_DEF float cog_sigmoid(float x);
@@ -63,8 +72,11 @@ COGNI_DEF error cog_write_weights(const char* path, const float* weights, size_t
                                   const float* bias, size_t b_len);
 COGNI_DEF error cog_read_weights(const char* path, float* weights, size_t w_len, float* bias,
                                  size_t b_len);
-COGNI_DEF Neuron* cog_neuron_init(float x[], float w[], float* b, float dw[], float* db, size_t len,
-                                  activision fun, activision fun_derive, float* out);
+COGNI_DEF Neuron* cog_neuron_init_m(float x[], float w[], float* b, float dw[], float* db,
+                                    size_t len, activision fun, activision fun_derive, float* out);
+COGNI_DEF Neuron* cog_neuron_init(Neuron* neuron, float x[], float w[], float* b, float dw[],
+                                  float* db, size_t len, activision fun, activision fun_derive,
+                                  float* out);
 COGNI_DEF void cog_neuron_destroy(Neuron* neuron);
 COGNI_DEF float cog_calculate_linear(const float* w, const float* x, size_t len, float b);
 COGNI_DEF float cog_neuron_forward(Neuron* neuron);
@@ -72,6 +84,14 @@ COGNI_DEF void cog_neuron_backpropagate(Neuron* neuron, float part_derive);
 COGNI_DEF void cog_neuron_part_derive(Neuron* neuron, float* part_derives);
 COGNI_DEF void cog_apply_derives(float* w, float* dw, size_t w_len, float* b, float* db,
                                  size_t b_len, float lr);
+
+COGNI_DEF void cog_array_rand_f(float* array, size_t len, float min, float max);
+COGNI_DEF void cog_layer_destroy(Layer* layer);
+COGNI_DEF Layer* cog_layer_init(size_t in_features, size_t out_features);
+COGNI_DEF void cog_layer_run(Layer* layer, const float* x);
+COGNI_DEF void cog_layer_backpropagate(Layer* layer, float* partial_derive);
+COGNI_DEF void cog_layer_part_derive(Layer* layer);
+COGNI_DEF void cog_layer_apply_derives(Layer* layer, float lr);
 
 #endif // COGNI_INCLUDE_H
 
@@ -99,6 +119,16 @@ COGNI_DEF float cog_sigmoid_deriv(float x)
 {
     float sig = cog_sigmoid(x);
     return sig * (1.f - sig);
+}
+
+COGNI_DEF float cog_relu(float x)
+{
+    return x * (x > 0);
+}
+
+COGNI_DEF float cog_relu_deriv(float x)
+{
+    return x > 0;
 }
 
 COGNI_DEF void cog_print_arr(float* arr, size_t len, char* name)
@@ -155,16 +185,22 @@ COGNI_DEF error cog_read_weights(const char* path, float* weights, size_t w_len,
     return 0;
 }
 
-COGNI_DEF Neuron* cog_neuron_init(float x[], float w[], float* b, float dw[], float* db, size_t len,
-                                  activision fun, activision fun_derive, float* out)
+COGNI_DEF Neuron* cog_neuron_init_m(float x[], float w[], float* b, float dw[], float* db,
+                                    size_t len, activision fun, activision fun_derive, float* out)
 {
     Neuron* neuron = (Neuron*)malloc(sizeof(Neuron));
     if (neuron == 0)
     {
         fprintf(stderr, "[ERROR] Could not allocate memory for neuron.\n");
-        exit(EXIT_FAILURE);
+        return NULL;
     }
+    return cog_neuron_init(neuron, x, w, b, dw, db, len, fun, fun_derive, out);
+}
 
+COGNI_DEF Neuron* cog_neuron_init(Neuron* neuron, float x[], float w[], float* b, float dw[],
+                                  float* db, size_t len, activision fun, activision fun_derive,
+                                  float* out)
+{
     neuron->fun        = fun;
     neuron->fun_derive = fun_derive;
 
@@ -186,23 +222,6 @@ COGNI_DEF void cog_neuron_destroy(Neuron* neuron)
 {
     free(neuron);
 }
-
-typedef struct LinearLayer
-{
-    Neuron** n;
-    float* outputs;
-    float* part_derive;
-    size_t len;
-    struct LinearLayer* last_layer;
-} LinearLayer;
-
-typedef struct Model
-{
-    activision loss_fun;
-    activision loss_fun_derive;
-    LinearLayer* l;
-    size_t len;
-} Model;
 
 COGNI_DEF float cog_calculate_linear(const float* w, const float* x, size_t len, float b)
 {
@@ -253,6 +272,131 @@ COGNI_DEF void cog_apply_derives(float* w, float* dw, size_t w_len, float* b, fl
     for (size_t i = 0; i < b_len; i++)
     {
         b[i] -= lr * db[i];
+    }
+}
+
+COGNI_DEF void cog_array_rand_f(float* array, size_t len, float min, float max)
+{
+    max -= min;
+    for (size_t i = 0; i < len; i++)
+    {
+        array[i] = (((float)rand() / (float)(RAND_MAX)) * max) + min;
+    }
+}
+
+COGNI_DEF void cog_layer_destroy(Layer* layer)
+{
+    if (layer == NULL)
+    {
+        printf("ERROR: cannot double free\n");
+        return;
+    }
+
+    if (layer->len == 0)
+    {
+        free(layer);
+        return;
+    }
+
+    free(layer->neurons[0].w);
+    free(layer->neurons[0].x);
+    free(layer->neurons[0].b);
+    free(layer->neurons[0].dw);
+    free(layer->neurons[0].db);
+    free(layer->neurons[0].out);
+
+    free(layer->neurons);
+    free(layer->part_derive);
+    free(layer);
+}
+
+/* use malloc on return */
+COGNI_DEF Layer* cog_layer_init(size_t in_features, size_t out_features)
+{
+    Layer* layer = malloc(sizeof(Layer));
+    if (layer == NULL)
+    {
+        fprintf(stderr, "ERROR: could not malloc layer\n");
+        return NULL;
+    }
+
+    layer->len         = out_features;
+    layer->neurons     = malloc(sizeof(Neuron) * out_features);
+    layer->part_derive = malloc(sizeof(float) * in_features * out_features);
+    float* w           = malloc(sizeof(float) * in_features * out_features);
+    float* x           = malloc(sizeof(float) * in_features);
+    float* b           = malloc(sizeof(float) * out_features);
+    float* dw          = malloc(sizeof(float) * in_features * out_features);
+    float* db          = malloc(sizeof(float) * out_features);
+    float* out         = malloc(sizeof(float) * out_features);
+    if (layer == NULL || layer->part_derive == NULL || w == NULL || x == NULL || b == NULL ||
+        dw == NULL || db == NULL || out == NULL)
+    {
+        fprintf(stderr, "ERROR: could not malloc neurons data\n");
+        // TODO: check NULL for double free (define array and for loop)
+        free(layer->neurons);
+        free(layer->part_derive);
+        free(layer);
+        free(w);
+        free(x);
+        free(b);
+        free(dw);
+        free(db);
+        free(out);
+        return NULL;
+    }
+
+    cog_array_rand_f(w, in_features * out_features, -1, 1);
+    cog_array_rand_f(b, out_features, -1, 1);
+
+    for (size_t i = 0; i < out_features; i++)
+    {
+        cog_neuron_init(&layer->neurons[i], x, &w[i * in_features], &b[i], dw, db, in_features,
+                        &cog_relu, &cog_relu_deriv, &out[i]);
+    }
+
+    return layer;
+}
+
+COGNI_DEF void cog_layer_run(Layer* layer, const float* x)
+{
+    if (layer->len == 0)
+    {
+        return;
+    }
+
+    // TODO: move the x of the neuron to the layer and pass to the forward the x
+    memcpy(layer->neurons[0].x, x, (sizeof *x) * (layer->neurons[0].w_len));
+    for (size_t i = 0; i < layer->len; i++)
+    {
+        cog_neuron_forward(&layer->neurons[i]);
+    }
+}
+
+COGNI_DEF void cog_layer_backpropagate(Layer* layer, float* partial_derive)
+{
+    for (size_t i = 0; i < layer->len; i++)
+    {
+        cog_neuron_backpropagate(&layer->neurons[i], partial_derive[i * layer->neurons[i].w_len]);
+    }
+}
+
+COGNI_DEF void cog_layer_part_derive(Layer* layer)
+{
+    for (size_t i = 0; i < layer->len; i++)
+    {
+        cog_neuron_part_derive(&layer->neurons[i],
+                               &layer->part_derive[i * layer->neurons[i].w_len]);
+    }
+}
+
+COGNI_DEF void cog_layer_apply_derives(Layer* layer, float lr)
+{
+    for (size_t i = 0; i < layer->len; i++)
+    {
+        // can be done with the first and all the size
+        cog_apply_derives(layer->neurons[i].w, layer->neurons[i].dw, layer->neurons[i].w_len,
+                          layer->neurons[i].b, layer->neurons[i].db, 1, lr);
     }
 }
 

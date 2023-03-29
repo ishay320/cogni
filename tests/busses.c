@@ -2,6 +2,7 @@
 #include "cogni.h"
 
 #include <stdbool.h>
+#include <string.h>
 
 #define MAX_LINE_SIZE 1024
 
@@ -34,6 +35,8 @@ error get_csv_dimensions(FILE* csv_file, size_t* columns, size_t* rows)
     {
         ++line_num;
     }
+    free(buffer);
+    buffer = NULL;
 
     *columns = comma_num + 1;
     *rows    = line_num;
@@ -55,9 +58,18 @@ error read_csv_f(const char* filename, float** data, size_t* columns, size_t* ro
     }
 
     get_csv_dimensions(csv_file, columns, rows);
+    if (rows == 0 && throw_first_row)
+    {
+        fclose(csv_file);
+        printf("file '%s' empty\n", filename);
+        return 1;
+    }
+
+    (*rows) -= throw_first_row;
     *data = malloc((sizeof **data) * (*columns) * (*rows));
     if (*data == NULL)
     {
+        fclose(csv_file);
         fprintf(stderr, "ERROR: could not malloc data: %s", strerror(errno));
         return 1;
     }
@@ -70,15 +82,15 @@ error read_csv_f(const char* filename, float** data, size_t* columns, size_t* ro
     }
 
     char* buffer = NULL;
-    for (size_t line = 0 + throw_first_row; line < (*rows); line++)
+    for (size_t line = 0; line < *rows; line++)
     {
         size_t buffer_size = 0;
         if (getline(&buffer, &buffer_size, csv_file) == -1)
         {
+            fclose(csv_file);
             printf("ERROR: could not read line in file: %s\n", filename);
             return 1;
         }
-
         char* buffer_ptr = buffer;
         for (size_t i = 0; i < *columns; i++)
         {
@@ -86,8 +98,10 @@ error read_csv_f(const char* filename, float** data, size_t* columns, size_t* ro
             (*data)[line * (*columns) + i] = strtof(buffer_ptr, &end_num);
             buffer_ptr                     = end_num + 1;
         }
+        free(buffer);
+        buffer = NULL;
     }
-    free(buffer);
+    fclose(csv_file);
 
     return 0;
 }
@@ -100,13 +114,64 @@ int main(int argc, char const* argv[])
     const char* filename = "busses.csv";
     size_t columns, rows;
     float* xs;
+    float* ys;
+    const size_t y_stride = 4;
 
-    if (read_csv_f(filename, &xs, &columns, &rows, false) != 0)
+    // TODO: add option to skip columns and read only columns
+    if (read_csv_f(filename, &xs, &columns, &rows, true) != 0)
     {
         return 1;
     }
+    ys = &xs[3];
+
+    Layer* l1 = cog_layer_init(3, 5);
+    Layer* l2 = cog_layer_init(5, 3);
+    Layer* l3 = cog_layer_init(3, 1);
+
+    cog_layer_run(l1, xs);
+    // TODO: get the out of the neuron to the layer
+    cog_layer_run(l2, l1->neurons[0].out);
+    cog_layer_run(l3, l2->neurons[0].out);
+
+    float prediction = *l3->neurons[0].out;
+
+    printf("first output l1: %f\n", *l1->neurons[0].x);
+    printf("first output l2: %f\n", *l2->neurons[0].x);
+    printf("prediction   l3: %f\n", prediction);
+    printf("prediction: %f, truth: %f, mse: %f\n", prediction, ys[0 * y_stride],
+           cog_mse(ys[0 * y_stride], prediction));
+
+    const size_t epochs = 10;
+    const float lr      = 0.05;
+    for (size_t epoch = 0; epoch < epochs; epoch++)
+    {
+        float d_mse = cog_mse_deriv(ys[0 * y_stride], prediction);
+        cog_layer_backpropagate(l3, &d_mse);
+        cog_layer_part_derive(l3);
+        cog_layer_backpropagate(l2, l3->part_derive);
+        cog_layer_part_derive(l2);
+        cog_layer_backpropagate(l1, l2->part_derive);
+
+        // Apply the derives
+        cog_layer_apply_derives(l1, lr);
+        cog_layer_apply_derives(l2, lr);
+        cog_layer_apply_derives(l3, lr);
+
+        // forward pass (prediction)
+        cog_layer_run(l1, xs);
+        cog_layer_run(l2, l1->neurons[0].out);
+        cog_layer_run(l3, l2->neurons[0].out);
+
+        float prediction = *l3->neurons[0].out;
+
+        printf("prediction: %f, truth: %f, mse: %f\n", prediction, ys[0 * y_stride],
+               cog_mse(ys[0 * y_stride], prediction));
+    }
 
     free(xs);
+    cog_layer_destroy(l1);
+    cog_layer_destroy(l2);
+    cog_layer_destroy(l3);
     printf("\033[32m[+] %s passed\033[0m\n", __FILE__);
     return 0;
 }
