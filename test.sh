@@ -5,7 +5,7 @@ SOURCES=(./compare_to_math.c ./busses.c)
 BUILD=./build/
 INCLUDE=-I../
 LINK=-lm
-CFLAGS="-Wall -Wextra -pedantic -g"
+CFLAGS="-Wall -Wextra -Wshadow -pedantic -g"
 
 cd tests || exit 1
 

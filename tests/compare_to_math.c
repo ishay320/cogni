@@ -83,7 +83,7 @@ int reference(char* out)
     float o1 = h1 * w[4] + h2 * w[5] + b[2];
     float a1 = cog_sigmoid(o1);
 
-    const float prediction = a1;
+    float prediction = a1;
     sprintf(out + strlen(out), "prediction: %f, truth: %f, mse: %f\n", prediction, y_true[0],
             cog_mse(prediction, y_true[0]));
 
@@ -132,14 +132,14 @@ int reference(char* out)
         }
 
         // forward pass (prediction)
-        float n1 = xs[0] * w[0] + xs[1] * w[1] + b[0];
-        float h1 = cog_sigmoid(n1);
-        float n2 = xs[0] * w[2] + xs[1] * w[3] + b[1];
-        float h2 = cog_sigmoid(n2);
-        float o1 = h1 * w[4] + h2 * w[5] + b[2];
-        float a1 = cog_sigmoid(o1);
+        n1 = xs[0] * w[0] + xs[1] * w[1] + b[0];
+        h1 = cog_sigmoid(n1);
+        n2 = xs[0] * w[2] + xs[1] * w[3] + b[1];
+        h2 = cog_sigmoid(n2);
+        o1 = h1 * w[4] + h2 * w[5] + b[2];
+        a1 = cog_sigmoid(o1);
 
-        const float prediction = a1;
+        prediction = a1;
         sprintf(out + strlen(out), "prediction: %f, truth: %f, mse: %f\n", prediction, y_true[0],
                 cog_mse(prediction, y_true[0]));
     }

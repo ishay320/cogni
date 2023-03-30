@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <math.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,7 +74,6 @@ COGNI_DEF float cog_relu_deriv(float x);
 COGNI_DEF float cog_lrelu(float x);
 COGNI_DEF float cog_lrelu_deriv(float x);
 
-COGNI_DEF void cog_print_arr(float* arr, size_t len, const char* format, ...);
 COGNI_DEF error cog_write_weights(const char* path, const float* weights, size_t w_len,
                                   const float* bias, size_t b_len);
 COGNI_DEF error cog_read_weights(const char* path, float* weights, size_t w_len, float* bias,
@@ -92,12 +92,16 @@ COGNI_DEF void cog_apply_derives(float* w, float* dw, size_t w_len, float* b, fl
                                  size_t b_len, float lr);
 
 COGNI_DEF void cog_array_rand_f(float* array, size_t len, float min, float max);
+
 COGNI_DEF void cog_layer_destroy(Layer* layer);
 COGNI_DEF Layer* cog_layer_init(size_t in_features, size_t out_features);
 COGNI_DEF void cog_layer_run(Layer* layer, const float* x);
-COGNI_DEF void cog_layer_backpropagate(Layer* layer, float* partial_derive);
+COGNI_DEF void cog_layer_backpropagate(Layer* layer, const float* partial_derive);
 COGNI_DEF void cog_layer_part_derive(Layer* layer);
 COGNI_DEF void cog_layer_apply_derives(Layer* layer, float lr);
+
+COGNI_DEF void cog_print_layer(const Layer* layer, bool print_derive, const char* layer_name);
+COGNI_DEF void cog_print_array(float* array, size_t len, const char* format, ...);
 
 #endif // COGNI_INCLUDE_H
 
@@ -145,20 +149,6 @@ COGNI_DEF float cog_lrelu(float x)
 COGNI_DEF float cog_lrelu_deriv(float x)
 {
     return (x > 0) ? 1 : 0.01;
-}
-
-COGNI_DEF void cog_print_arr(float* arr, size_t len, const char* format, ...)
-{
-    va_list argptr;
-    va_start(argptr, format);
-    vfprintf(stderr, format, argptr);
-    va_end(argptr);
-
-    for (size_t j = 0; j < len; j++)
-    {
-        printf("%f,", arr[j]);
-    }
-    printf("\n");
 }
 
 COGNI_DEF error cog_write_weights(const char* path, const float* weights, size_t w_len,
@@ -371,8 +361,8 @@ COGNI_DEF Layer* cog_layer_init(size_t in_features, size_t out_features)
 
     for (size_t i = 0; i < out_features; i++)
     {
-        cog_neuron_init(&layer->neurons[i], x, &w[i * in_features], &b[i], dw, db, in_features,
-                        &cog_lrelu, &cog_lrelu_deriv, &out[i]);
+        cog_neuron_init(&layer->neurons[i], x, &w[i * in_features], &b[i], &dw[i * in_features], db,
+                        in_features, &cog_lrelu, &cog_lrelu_deriv, &out[i]);
     }
 
     return layer;
@@ -393,11 +383,11 @@ COGNI_DEF void cog_layer_run(Layer* layer, const float* x)
     }
 }
 
-COGNI_DEF void cog_layer_backpropagate(Layer* layer, float* partial_derive)
+COGNI_DEF void cog_layer_backpropagate(Layer* layer, const float* partial_derive)
 {
-    for (size_t i = 0; i < layer->len; i++)
+    for (size_t n = 0; n < layer->len; n++)
     {
-        cog_neuron_backpropagate(&layer->neurons[i], partial_derive[i * layer->neurons[i].w_len]);
+        cog_neuron_backpropagate(&layer->neurons[n], partial_derive[n]);
     }
 }
 
@@ -417,6 +407,58 @@ COGNI_DEF void cog_layer_apply_derives(Layer* layer, float lr)
         // can be done with the first and all the size
         cog_apply_derives(layer->neurons[i].w, layer->neurons[i].dw, layer->neurons[i].w_len,
                           layer->neurons[i].b, layer->neurons[i].db, 1, lr);
+    }
+}
+
+COGNI_DEF void cog_print_array(float* array, size_t len, const char* format, ...)
+{
+    va_list argptr;
+    va_start(argptr, format);
+    vfprintf(stderr, format, argptr);
+    va_end(argptr);
+
+    for (size_t j = 0; j < len; j++)
+    {
+        printf("%f,", array[j]);
+    }
+    printf("\n");
+}
+
+COGNI_DEF void cog_print_layer(const Layer* layer, bool print_derive, const char* layer_name)
+{
+    printf("%s:\n", layer_name);
+    printf("| ");
+    for (size_t i = 0; i < layer->neurons[0].w_len; i++)
+    {
+        printf("w%-13ld", i);
+    }
+    printf("b%-13s|\n", "");
+    for (size_t n = 0; n < layer->len; n++)
+    {
+        printf("| ");
+        for (size_t j = 0; j < layer->neurons[n].w_len; j++)
+        {
+            printf("%-13.6f ", layer->neurons[n].w[j]);
+        }
+        printf("%-13.6f |\n", *layer->neurons[n].b);
+    }
+    if (print_derive)
+    {
+        printf(" ");
+        for (size_t i = 0; i < layer->neurons[0].w_len; i++)
+        {
+            printf("-----------------");
+        }
+        printf("\n");
+        for (size_t n = 0; n < layer->len; n++)
+        {
+            printf("| ");
+            for (size_t j = 0; j < layer->neurons[n].w_len; j++)
+            {
+                printf("%-13.6f ", layer->neurons[n].dw[j]);
+            }
+            printf("%-13.6f |\n", *layer->neurons[n].db);
+        }
     }
 }
 

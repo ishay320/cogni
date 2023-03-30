@@ -124,7 +124,7 @@ int main(int argc, char const* argv[])
     }
     ys = &xs[3];
 
-    Layer* l1 = cog_layer_init(3, 5);
+    Layer* l1 = cog_layer_init(2, 5);
     Layer* l2 = cog_layer_init(5, 3);
     Layer* l3 = cog_layer_init(3, 1);
 
@@ -135,16 +135,21 @@ int main(int argc, char const* argv[])
 
     float prediction = *l3->neurons[0].out;
 
-    printf("first output l1: %f\n", *l1->neurons[0].x);
-    printf("first output l2: %f\n", *l2->neurons[0].x);
-    printf("prediction   l3: %f\n", prediction);
+#if 0
     printf("prediction: %f, truth: %f, mse: %f\n", prediction, ys[0 * y_stride],
            cog_mse(ys[0 * y_stride], prediction));
+#endif
 
-    const size_t epochs = 10;
-    const float lr      = 0.05;
+    const size_t epochs = 100;
+    const float lr      = 0.000005;
     for (size_t epoch = 0; epoch < epochs; epoch++)
     {
+#if 0
+        cog_print_layer(l1, false, "l1");
+        cog_print_layer(l2, false, "l2");
+        cog_print_layer(l3, false, "l3");
+#endif
+
         float d_mse = cog_mse_deriv(ys[0 * y_stride], prediction);
         cog_layer_backpropagate(l3, &d_mse);
         cog_layer_part_derive(l3);
@@ -162,16 +167,31 @@ int main(int argc, char const* argv[])
         cog_layer_run(l2, l1->neurons[0].out);
         cog_layer_run(l3, l2->neurons[0].out);
 
-        float prediction = *l3->neurons[0].out;
+        prediction = *l3->neurons[0].out;
 
+#if 0
         printf("prediction: %f, truth: %f, mse: %f\n", prediction, ys[0 * y_stride],
                cog_mse(ys[0 * y_stride], prediction));
+#endif
     }
+
+    const float mse   = cog_mse(ys[0], prediction);
+    const float trues = ys[0];
 
     free(xs);
     cog_layer_destroy(l1);
     cog_layer_destroy(l2);
     cog_layer_destroy(l3);
-    printf("\033[32m[+] %s passed\033[0m\n", __FILE__);
+
+    if (mse > 1)
+    {
+        printf(
+            "\033[31m[-] %s test failed: the mse is bigger then 1 : %f prediction: %f true: %f\n",
+            __FILE__, mse, prediction, trues);
+    }
+    else
+    {
+        printf("\033[32m[+] %s passed\033[0m\n", __FILE__);
+    }
     return 0;
 }
