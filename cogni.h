@@ -3,6 +3,7 @@
 
 #include <errno.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,7 +68,12 @@ COGNI_DEF float cog_mse(float x, float y);
 COGNI_DEF float cog_mse_deriv(float truth, float pred);
 COGNI_DEF float cog_sigmoid(float x);
 COGNI_DEF float cog_sigmoid_deriv(float x);
-COGNI_DEF void cog_print_arr(float* arr, size_t len, char* name);
+COGNI_DEF float cog_relu(float x);
+COGNI_DEF float cog_relu_deriv(float x);
+COGNI_DEF float cog_lrelu(float x);
+COGNI_DEF float cog_lrelu_deriv(float x);
+
+COGNI_DEF void cog_print_arr(float* arr, size_t len, const char* format, ...);
 COGNI_DEF error cog_write_weights(const char* path, const float* weights, size_t w_len,
                                   const float* bias, size_t b_len);
 COGNI_DEF error cog_read_weights(const char* path, float* weights, size_t w_len, float* bias,
@@ -131,9 +137,23 @@ COGNI_DEF float cog_relu_deriv(float x)
     return x > 0;
 }
 
-COGNI_DEF void cog_print_arr(float* arr, size_t len, char* name)
+COGNI_DEF float cog_lrelu(float x)
 {
-    printf("%s: ", name);
+    return (x > 0) ? x : x * 0.01;
+}
+
+COGNI_DEF float cog_lrelu_deriv(float x)
+{
+    return (x > 0) ? 1 : 0.01;
+}
+
+COGNI_DEF void cog_print_arr(float* arr, size_t len, const char* format, ...)
+{
+    va_list argptr;
+    va_start(argptr, format);
+    vfprintf(stderr, format, argptr);
+    va_end(argptr);
+
     for (size_t j = 0; j < len; j++)
     {
         printf("%f,", arr[j]);
@@ -346,13 +366,13 @@ COGNI_DEF Layer* cog_layer_init(size_t in_features, size_t out_features)
         return NULL;
     }
 
-    cog_array_rand_f(w, in_features * out_features, -1, 1);
-    cog_array_rand_f(b, out_features, -1, 1);
+    cog_array_rand_f(w, in_features * out_features, 0, 1);
+    cog_array_rand_f(b, out_features, 0, 1);
 
     for (size_t i = 0; i < out_features; i++)
     {
         cog_neuron_init(&layer->neurons[i], x, &w[i * in_features], &b[i], dw, db, in_features,
-                        &cog_relu, &cog_relu_deriv, &out[i]);
+                        &cog_lrelu, &cog_lrelu_deriv, &out[i]);
     }
 
     return layer;
