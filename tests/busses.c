@@ -5,6 +5,7 @@
 #include <string.h>
 
 #define MAX_LINE_SIZE 1024
+const char* g_filename = "data/busses.csv";
 
 error get_csv_dimensions(FILE* csv_file, size_t* columns, size_t* rows)
 {
@@ -111,14 +112,13 @@ int main(int argc, char const* argv[])
     UNUSED(argc);
     UNUSED(argv);
 
-    const char* filename = "busses.csv";
     size_t columns, rows;
     float* xs;
     float* ys;
     const size_t y_stride = 4;
 
     // TODO: add option to skip columns and read only columns
-    if (read_csv_f(filename, &xs, &columns, &rows, true) != 0)
+    if (read_csv_f(g_filename, &xs, &columns, &rows, true) != 0)
     {
         return 1;
     }

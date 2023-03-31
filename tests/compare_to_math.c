@@ -9,7 +9,7 @@
 #define NEURONS_LEN 3
 #define WEIGHTS_LEN (NEURONS_LEN * INPUTS_LEN)
 #define BIAS_LEN (WEIGHTS_LEN / INPUTS_LEN)
-
+const char* g_filename = "data/simple";
 // Setup the params
 float xs[INPUTS_LEN]  = {1.66, 1.56};
 float y_true[]        = {1};
@@ -24,7 +24,7 @@ const size_t epochs = 5;
 
 int mine(char* out)
 {
-    cog_read_weights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
+    cog_read_weights(g_filename, w, ARR_LEN(w), b, ARR_LEN(b));
 
     Neuron* h1 = cog_neuron_init_m(xs, w + 0, b + 0, dw + 0, db + 0, 2, cog_sigmoid,
                                    cog_sigmoid_deriv, h + 0);
@@ -73,7 +73,7 @@ int mine(char* out)
 
 int reference(char* out)
 {
-    cog_read_weights("simple", w, ARR_LEN(w), b, ARR_LEN(b));
+    cog_read_weights(g_filename, w, ARR_LEN(w), b, ARR_LEN(b));
 
     // forward pass (prediction)
     float n1 = xs[0] * w[0] + xs[1] * w[1] + b[0];
