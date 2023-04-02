@@ -107,6 +107,13 @@ error read_csv_f(const char* filename, float** data, size_t* columns, size_t* ro
     return 0;
 }
 
+void cog_layer_zero_grad(Layer* layer)
+{
+    memset(layer->neurons[0].dw, 0,
+           (sizeof layer->neurons[0].dw[0]) * layer->neurons[0].w_len * layer->len);
+    memset(layer->neurons[0].db, 0, (sizeof layer->neurons[0].db[0]) * layer->len);
+}
+
 int main(int argc, char const* argv[])
 {
     UNUSED(argc);
@@ -149,6 +156,9 @@ int main(int argc, char const* argv[])
         cog_print_layer(l2, false, "l2");
         cog_print_layer(l3, false, "l3");
 #endif
+        cog_layer_zero_grad(l1);
+        cog_layer_zero_grad(l2);
+        cog_layer_zero_grad(l3);
 
         float d_mse = cog_mse_deriv(ys[0 * y_stride], prediction);
         cog_layer_backpropagate(l3, &d_mse);

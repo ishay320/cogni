@@ -44,6 +44,10 @@ int mine(char* out)
 
     for (size_t epoch = 0; epoch < epochs; epoch++)
     {
+        // empty grads
+        memset(dw, 0,(sizeof *dw)* ARR_LEN(w));
+        memset(db, 0,(sizeof *db)* ARR_LEN(b));
+
         float d_mse = cog_mse_deriv(y_true[0], h[2]);
 
         cog_neuron_backpropagate(a1, h, d_mse);

@@ -5,7 +5,7 @@ SOURCES=(./compare_to_math.c ./busses.c)
 BUILD=./build/
 INCLUDE=-I../
 LINK=-lm
-CFLAGS="-Wall -Wextra -Wshadow -pedantic -g"
+CFLAGS="-Wall -Wextra -Wshadow -pedantic -g -fno-omit-frame-pointer -fsanitize=address"
 
 cd tests || exit 1
 

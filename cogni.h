@@ -191,6 +191,7 @@ COGNI_DEF error cog_read_weights(const char* path, float* weights, size_t w_len,
     {
         fscanf(fp, "%f ", &bias[i]);
     }
+    fclose(fp);
     return 0;
 }
 
@@ -254,9 +255,9 @@ COGNI_DEF void cog_neuron_backpropagate(Neuron* neuron, const float* xs, float p
     neuron->base_derive = neuron->fun_derive(*neuron->out) * part_derive;
     for (size_t i = 0; i < neuron->w_len; i++)
     {
-        neuron->dw[i] = neuron->base_derive * xs[i];
+        neuron->dw[i] += neuron->base_derive * xs[i];
     }
-    *neuron->db = neuron->base_derive;
+    *neuron->db += neuron->base_derive;
 }
 
 COGNI_DEF void cog_neuron_part_derive(Neuron* neuron, float* part_derives)
