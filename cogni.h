@@ -76,8 +76,13 @@ COGNI_DEF float cog_lrelu_deriv(float x);
 
 COGNI_DEF error cog_write_weights(const char* path, const float* weights, size_t w_len,
                                   const float* bias, size_t b_len);
+COGNI_DEF error cog_write_weights_p(FILE* fp, const float* weights, size_t w_len, const float* bias,
+                                    size_t b_len);
 COGNI_DEF error cog_read_weights(const char* path, float* weights, size_t w_len, float* bias,
                                  size_t b_len);
+COGNI_DEF error cog_read_weights_p(FILE* fp, float* weights, size_t w_len, float* bias,
+                                   size_t b_len);
+
 COGNI_DEF Neuron* cog_neuron_init_m(float w[], float* b, float dw[], float* db, size_t len,
                                     activision fun, activision fun_derive, float* out);
 COGNI_DEF Neuron* cog_neuron_init(Neuron* neuron, float w[], float* b, float dw[], float* db,
@@ -160,6 +165,15 @@ COGNI_DEF error cog_write_weights(const char* path, const float* weights, size_t
         return 1;
     }
 
+    error err = cog_write_weights_p(fp, weights, w_len, bias, b_len);
+
+    fclose(fp);
+    return err;
+}
+
+COGNI_DEF error cog_write_weights_p(FILE* fp, const float* weights, size_t w_len, const float* bias,
+                                    size_t b_len)
+{
     for (size_t i = 0; i < w_len; i++)
     {
         fprintf(fp, "%f ", weights[i]);
@@ -181,7 +195,15 @@ COGNI_DEF error cog_read_weights(const char* path, float* weights, size_t w_len,
         fprintf(stderr, "could not open file '%s': %s\n", path, strerror(errno));
         return 1;
     }
+    error err = cog_read_weights_p(fp, weights, w_len, bias, b_len);
 
+    fclose(fp);
+    return err;
+}
+
+COGNI_DEF error cog_read_weights_p(FILE* fp, float* weights, size_t w_len, float* bias,
+                                   size_t b_len)
+{
     for (size_t i = 0; i < w_len; i++)
     {
         fscanf(fp, "%f ", &weights[i]);
@@ -191,7 +213,6 @@ COGNI_DEF error cog_read_weights(const char* path, float* weights, size_t w_len,
     {
         fscanf(fp, "%f ", &bias[i]);
     }
-    fclose(fp);
     return 0;
 }
 
