@@ -176,13 +176,14 @@ COGNI_DEF error cog_write_weights_p(FILE* fp, const float* weights, size_t w_len
 {
     for (size_t i = 0; i < w_len; i++)
     {
-        fprintf(fp, "%f ", weights[i]);
+        fprintf(fp, "%a ", weights[i]);
     }
     fprintf(fp, "\n");
     for (size_t i = 0; i < b_len; i++)
     {
-        fprintf(fp, "%f ", bias[i]);
+        fprintf(fp, "%a ", bias[i]);
     }
+    fprintf(fp, "\n");
     return 0;
 }
 
@@ -206,13 +207,14 @@ COGNI_DEF error cog_read_weights_p(FILE* fp, float* weights, size_t w_len, float
 {
     for (size_t i = 0; i < w_len; i++)
     {
-        fscanf(fp, "%f ", &weights[i]);
+        fscanf(fp, "%a ", &weights[i]);
     }
     fscanf(fp, "\n");
     for (size_t i = 0; i < b_len; i++)
     {
-        fscanf(fp, "%f ", &bias[i]);
+        fscanf(fp, "%a ", &bias[i]);
     }
+    fscanf(fp, "\n");
     return 0;
 }
 
