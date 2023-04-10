@@ -3,9 +3,10 @@ set -e
 
 SOURCES=(./compare_to_math.c ./busses.c)
 BUILD=./build/
-INCLUDE=-I../
+INCLUDE="-I../ -I../utils"
 LINK=-lm
-CFLAGS="-Wall -Wextra -Wshadow -pedantic -g -fno-omit-frame-pointer -fsanitize=address"
+CFLAGS="-Wall -Wextra -Wshadow -pedantic -g"
+# CFLAGS+="-fno-omit-frame-pointer -fsanitize=address"
 
 cd tests || exit 1
 

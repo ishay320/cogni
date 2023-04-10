@@ -65,6 +65,7 @@ typedef struct Layer
     struct Layer* last_layer;
 } Layer;
 
+/* Functions */
 COGNI_DEF float cog_mse(float x, float y);
 COGNI_DEF float cog_mse_deriv(float truth, float pred);
 COGNI_DEF float cog_sigmoid(float x);
@@ -74,6 +75,7 @@ COGNI_DEF float cog_relu_deriv(float x);
 COGNI_DEF float cog_lrelu(float x);
 COGNI_DEF float cog_lrelu_deriv(float x);
 
+/* Files io */
 COGNI_DEF error cog_write_weights(const char* path, const float* weights, size_t w_len,
                                   const float* bias, size_t b_len);
 COGNI_DEF error cog_write_weights_p(FILE* fp, const float* weights, size_t w_len, const float* bias,
@@ -83,6 +85,8 @@ COGNI_DEF error cog_read_weights(const char* path, float* weights, size_t w_len,
 COGNI_DEF error cog_read_weights_p(FILE* fp, float* weights, size_t w_len, float* bias,
                                    size_t b_len);
 
+/* Neurons */
+// Neuron init using malloc - use neuron_destroy
 COGNI_DEF Neuron* cog_neuron_init_m(float w[], float* b, float dw[], float* db, size_t len,
                                     activision fun, activision fun_derive, float* out);
 COGNI_DEF Neuron* cog_neuron_init(Neuron* neuron, float w[], float* b, float dw[], float* db,
@@ -92,18 +96,22 @@ COGNI_DEF float cog_calculate_linear(const float* w, const float* x, size_t len,
 COGNI_DEF float cog_neuron_forward(Neuron* neuron, const float* xs);
 COGNI_DEF void cog_neuron_backpropagate(Neuron* neuron, const float* xs, float part_derive);
 COGNI_DEF void cog_neuron_part_derive(Neuron* neuron, float* part_derives);
+
 COGNI_DEF void cog_apply_derives(float* w, float* dw, size_t w_len, float* b, float* db,
                                  size_t b_len, float lr);
 
 COGNI_DEF void cog_array_rand_f(float* array, size_t len, float min, float max);
 
-COGNI_DEF void cog_layer_destroy(Layer* layer);
+/* Layers */
 COGNI_DEF Layer* cog_layer_init(size_t in_features, size_t out_features);
+COGNI_DEF void cog_layer_destroy(Layer* layer);
 COGNI_DEF void cog_layer_run(Layer* layer, const float* xs);
+COGNI_DEF void cog_layer_zero_grad(Layer* layer);
 COGNI_DEF void cog_layer_backpropagate(Layer* layer, const float* partial_derive);
 COGNI_DEF void cog_layer_part_derive(Layer* layer);
 COGNI_DEF void cog_layer_apply_derives(Layer* layer, float lr);
 
+/* Printing and debug */
 COGNI_DEF void cog_print_layer(const Layer* layer, bool print_derive, const char* layer_name);
 COGNI_DEF void cog_print_array(float* array, size_t len, const char* format, ...);
 
@@ -305,6 +313,13 @@ COGNI_DEF void cog_apply_derives(float* w, float* dw, size_t w_len, float* b, fl
     }
 }
 
+COGNI_DEF void cog_layer_zero_grad(Layer* layer)
+{
+    memset(layer->neurons[0].dw, 0,
+           (sizeof layer->neurons[0].dw[0]) * layer->neurons[0].w_len * layer->len);
+    memset(layer->neurons[0].db, 0, (sizeof layer->neurons[0].db[0]) * layer->len);
+}
+
 COGNI_DEF void cog_array_rand_f(float* array, size_t len, float min, float max)
 {
     max -= min;
@@ -314,33 +329,7 @@ COGNI_DEF void cog_array_rand_f(float* array, size_t len, float min, float max)
     }
 }
 
-COGNI_DEF void cog_layer_destroy(Layer* layer)
-{
-    if (layer == NULL)
-    {
-        printf("ERROR: cannot double free\n");
-        return;
-    }
-
-    if (layer->len == 0)
-    {
-        free(layer);
-        return;
-    }
-
-    free(layer->neurons[0].w);
-    free(layer->neurons[0].b);
-    free(layer->neurons[0].dw);
-    free(layer->neurons[0].db);
-    free(layer->neurons[0].out);
-
-    free(layer->inputs);
-    free(layer->neurons);
-    free(layer->part_derive);
-    free(layer);
-}
-
-/* use malloc on return */
+/* use malloc on return value - use layer_destroy*/
 COGNI_DEF Layer* cog_layer_init(size_t in_features, size_t out_features)
 {
     Layer* layer = malloc(sizeof(Layer));
@@ -386,6 +375,32 @@ COGNI_DEF Layer* cog_layer_init(size_t in_features, size_t out_features)
     }
 
     return layer;
+}
+
+COGNI_DEF void cog_layer_destroy(Layer* layer)
+{
+    if (layer == NULL)
+    {
+        printf("ERROR: cannot double free\n");
+        return;
+    }
+
+    if (layer->len == 0)
+    {
+        free(layer);
+        return;
+    }
+
+    free(layer->neurons[0].w);
+    free(layer->neurons[0].b);
+    free(layer->neurons[0].dw);
+    free(layer->neurons[0].db);
+    free(layer->neurons[0].out);
+
+    free(layer->inputs);
+    free(layer->neurons);
+    free(layer->part_derive);
+    free(layer);
 }
 
 COGNI_DEF void cog_layer_run(Layer* layer, const float* xs)
