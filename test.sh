@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-SOURCES=(./compare_to_math.c ./busses.c)
+SOURCES=(
+    ./compare_to_math.c
+    ./busses.c
+)
+
 BUILD=./build/
 INCLUDE="-I../ -I../utils"
 LINK=-lm
