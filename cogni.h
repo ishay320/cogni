@@ -286,9 +286,9 @@ COGNI_DEF void cog_neuron_backpropagate(Neuron* neuron, const float* xs, float p
     neuron->base_derive = neuron->fun_derive(*neuron->out) * part_derive;
     for (size_t i = 0; i < neuron->w_len; i++)
     {
-        neuron->dw[i] += neuron->base_derive * xs[i];
+        neuron->dw[i] = neuron->base_derive * xs[i];
     }
-    *neuron->db += neuron->base_derive;
+    *neuron->db = neuron->base_derive;
 }
 
 COGNI_DEF void cog_neuron_part_derive(Neuron* neuron, float* part_derives)
@@ -370,8 +370,8 @@ COGNI_DEF Layer* cog_layer_init(size_t in_features, size_t out_features)
 
     for (size_t i = 0; i < out_features; i++)
     {
-        cog_neuron_init(&layer->neurons[i], &w[i * in_features], &b[i], &dw[i * in_features], db,
-                        in_features, &cog_lrelu, &cog_lrelu_deriv, &out[i]);
+        cog_neuron_init(&layer->neurons[i], &w[i * in_features], &b[i], &dw[i * in_features],
+                        &db[i], in_features, &cog_lrelu, &cog_lrelu_deriv, &out[i]);
     }
 
     return layer;
