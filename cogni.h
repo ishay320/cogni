@@ -264,7 +264,7 @@ COGNI_DEF void cog_neuron_destroy(Neuron* neuron)
 
 COGNI_DEF float cog_calculate_linear(const float* w, const float* x, size_t len, float b)
 {
-    float sum = 0;
+    float sum = 0.f;
     for (size_t i = 0; i < len; i++)
     {
         sum += w[i] * x[i];
