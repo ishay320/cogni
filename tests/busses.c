@@ -52,11 +52,11 @@ int main(int argc, char const* argv[])
             // forward pass (prediction)
             // TODO: get the out of the neuron to the layer
             cog_layer_run(l1, xs + (pos * y_stride));
-            cog_layer_run(l2, l1->neurons[0].out);
-            cog_layer_run(l3, l2->neurons[0].out);
-            cog_layer_run(l4, l3->neurons[0].out);
+            cog_layer_run(l2, l1->outputs);
+            cog_layer_run(l3, l2->outputs);
+            cog_layer_run(l4, l3->outputs);
 
-            prediction        = *l4->neurons[0].out;
+            prediction        = l4->outputs[0];
             const float trues = ys[pos * y_stride];
             const float mse   = cog_mse(trues, prediction);
             avg_mse += mse / rows;
@@ -118,11 +118,11 @@ int main(int argc, char const* argv[])
     for (size_t i = 0; i < rows; i++)
     {
         cog_layer_run(l1, xs + (i * y_stride));
-        cog_layer_run(l2, l1->neurons[0].out);
-        cog_layer_run(l3, l2->neurons[0].out);
-        cog_layer_run(l4, l3->neurons[0].out);
+        cog_layer_run(l2, l1->outputs);
+        cog_layer_run(l3, l2->outputs);
+        cog_layer_run(l4, l3->outputs);
 
-        prediction = *l4->neurons[0].out;
+        prediction = *l4->outputs;
 
         const float trues = ys[i * y_stride];
         const float mse   = cog_mse(trues, prediction);

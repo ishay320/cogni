@@ -11,13 +11,13 @@
 #define BIAS_LEN (WEIGHTS_LEN / INPUTS_LEN)
 const char* g_filename = "data/simple";
 // Setup the params
-float xs[INPUTS_LEN]  = {1.66, 1.56};
-float y_true[]        = {1};
-float h[NEURONS_LEN]  = {0, 0, 0};
-float b[BIAS_LEN]     = {3, 1, -5};
-float w[WEIGHTS_LEN]  = {10.45, -10, 0, -3.9, 0.33, -4.7};
-float dw[WEIGHTS_LEN] = {0};
-float db[BIAS_LEN]    = {0};
+float xs[INPUTS_LEN]     = {1.66, 1.56};
+float y_true[]           = {1};
+float n_out[NEURONS_LEN] = {0, 0, 0};
+float b[BIAS_LEN]        = {3, 1, -5};
+float w[WEIGHTS_LEN]     = {10.45, -10, 0, -3.9, 0.33, -4.7};
+float dw[WEIGHTS_LEN]    = {0};
+float db[BIAS_LEN]       = {0};
 
 float lr            = 0.9f;
 const size_t epochs = 5;
@@ -26,47 +26,43 @@ int mine(char* out)
 {
     cog_read_weights(g_filename, w, ARR_LEN(w), b, ARR_LEN(b));
 
-    Neuron* h1 =
-        cog_neuron_init_m(w + 0, b + 0, dw + 0, db + 0, 2, cog_sigmoid, cog_sigmoid_deriv, h + 0);
-    Neuron* h2 =
-        cog_neuron_init_m(w + 2, b + 1, dw + 2, db + 1, 2, cog_sigmoid, cog_sigmoid_deriv, h + 1);
-    Neuron* a1 =
-        cog_neuron_init_m(w + 4, b + 2, dw + 4, db + 2, 2, cog_sigmoid, cog_sigmoid_deriv, h + 2);
+    Neuron* h1 = cog_neuron_init_m(w + 0, b + 0, dw + 0, db + 0, 2, cog_sigmoid, cog_sigmoid_deriv);
+    Neuron* h2 = cog_neuron_init_m(w + 2, b + 1, dw + 2, db + 1, 2, cog_sigmoid, cog_sigmoid_deriv);
+    Neuron* a1 = cog_neuron_init_m(w + 4, b + 2, dw + 4, db + 2, 2, cog_sigmoid, cog_sigmoid_deriv);
 
     // forward pass (prediction)
-    cog_neuron_forward(h1, xs);
-    cog_neuron_forward(h2, xs);
-    cog_neuron_forward(a1, h);
-    sprintf(out + strlen(out), "prediction: %f, truth: %f, mse: %f\n", h[2], y_true[0],
-            cog_mse(h[2], y_true[0]));
+    n_out[0] = cog_neuron_forward(h1, xs);
+    n_out[1] = cog_neuron_forward(h2, xs);
+    n_out[2] = cog_neuron_forward(a1, n_out);
+    sprintf(out + strlen(out), "prediction: %f, truth: %f, mse: %f\n", n_out[2], y_true[0],
+            cog_mse(n_out[2], y_true[0]));
 
     // backpropagation (training)
-
     for (size_t epoch = 0; epoch < epochs; epoch++)
     {
         // empty grads
-        memset(dw, 0,(sizeof *dw)* ARR_LEN(w));
-        memset(db, 0,(sizeof *db)* ARR_LEN(b));
+        memset(dw, 0, (sizeof *dw) * ARR_LEN(w));
+        memset(db, 0, (sizeof *db) * ARR_LEN(b));
 
-        float d_mse = cog_mse_deriv(y_true[0], h[2]);
+        float d_mse = cog_mse_deriv(y_true[0], n_out[2]);
 
-        cog_neuron_backpropagate(a1, h, d_mse);
+        cog_neuron_backpropagate(a1, n_out[2], n_out, d_mse);
 
         float part_derive[2];
         cog_neuron_part_derive(a1, part_derive);
 
-        cog_neuron_backpropagate(h1, xs, part_derive[0]);
-        cog_neuron_backpropagate(h2, xs, part_derive[1]);
+        cog_neuron_backpropagate(h1, n_out[0], xs, part_derive[0]);
+        cog_neuron_backpropagate(h2, n_out[1], xs, part_derive[1]);
 
         // Apply the derives
         cog_apply_derives(w, dw, ARR_LEN(w), b, db, ARR_LEN(b), lr);
 
         // forward pass (prediction)
-        cog_neuron_forward(h1, xs);
-        cog_neuron_forward(h2, xs);
-        cog_neuron_forward(a1, h);
-        sprintf(out + strlen(out), "prediction: %f, truth: %f, mse: %f\n", h[2], y_true[0],
-                cog_mse(h[2], y_true[0]));
+        n_out[0] = cog_neuron_forward(h1, xs);
+        n_out[1] = cog_neuron_forward(h2, xs);
+        n_out[2] = cog_neuron_forward(a1, n_out);
+        sprintf(out + strlen(out), "prediction: %f, truth: %f, mse: %f\n", n_out[2], y_true[0],
+                cog_mse(n_out[2], y_true[0]));
     }
 
     cog_neuron_destroy(h1);
