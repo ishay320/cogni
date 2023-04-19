@@ -2,3 +2,4 @@
 
 *.a
 *.log
+__pycache__

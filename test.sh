@@ -10,7 +10,7 @@ BUILD=./build/
 INCLUDE="-I../ -I../utils"
 LINK=-lm
 CFLAGS="-Wall -Wextra -Wshadow -pedantic -g"
-# CFLAGS+="-fno-omit-frame-pointer -fsanitize=address"
+# CFLAGS+=" -fno-omit-frame-pointer -fsanitize=address"
 
 cd tests || exit 1
 

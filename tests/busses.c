@@ -27,6 +27,8 @@ int main(int argc, char const* argv[])
     Layer* l3 = cog_layer_init(7, 5);
     Layer* l4 = cog_layer_init(5, 1);
 
+    Layer_Fun lrelu = cog_layer_activision_init(L_RELU);
+
     FILE* fp = fopen("busses.w", "r+");
 #if 0
     cog_read_weights_p(fp, l1->neurons[0].w, l1->len * l1->neurons[0].w_len, l1->neurons[0].b,
@@ -52,16 +54,20 @@ int main(int argc, char const* argv[])
             // forward pass (prediction)
             // TODO: get the out of the neuron to the layer
             cog_layer_run(l1, xs + (pos * y_stride));
-            cog_layer_run(l2, l1->neurons[0].out);
-            cog_layer_run(l3, l2->neurons[0].out);
-            cog_layer_run(l4, l3->neurons[0].out);
+            cog_layer_activate(lrelu, l1);
+            cog_layer_run(l2, l1->outputs);
+            cog_layer_activate(lrelu, l2);
+            cog_layer_run(l3, l2->outputs);
+            cog_layer_activate(lrelu, l3);
+            cog_layer_run(l4, l3->outputs);
+            // cog_layer_activate(lrelu, l4);
 
-            prediction        = *l4->neurons[0].out;
+            prediction        = l4->outputs[0];
             const float trues = ys[pos * y_stride];
             const float mse   = cog_mse(trues, prediction);
             avg_mse += mse / rows;
 
-#if 0 
+#if 0
         // print error
         if ((epoch % (10000 * rows)) == 0)
         {
@@ -83,6 +89,7 @@ int main(int argc, char const* argv[])
             cog_layer_zero_grad(l3);
             cog_layer_zero_grad(l4);
 
+            // Derive layers
             const float d_mse = cog_mse_deriv(trues, prediction);
             cog_layer_backpropagate(l4, &d_mse);
             cog_layer_part_derive(l4);
@@ -118,11 +125,15 @@ int main(int argc, char const* argv[])
     for (size_t i = 0; i < rows; i++)
     {
         cog_layer_run(l1, xs + (i * y_stride));
-        cog_layer_run(l2, l1->neurons[0].out);
-        cog_layer_run(l3, l2->neurons[0].out);
-        cog_layer_run(l4, l3->neurons[0].out);
+        cog_layer_activate(lrelu, l1);
+        cog_layer_run(l2, l1->outputs);
+        cog_layer_activate(lrelu, l2);
+        cog_layer_run(l3, l2->outputs);
+        cog_layer_activate(lrelu, l3);
+        cog_layer_run(l4, l3->outputs);
+        // cog_layer_activate(lrelu, l4);
 
-        prediction = *l4->neurons[0].out;
+        prediction = *l4->outputs;
 
         const float trues = ys[i * y_stride];
         const float mse   = cog_mse(trues, prediction);
@@ -141,15 +152,19 @@ int main(int argc, char const* argv[])
     cog_layer_destroy(l4);
 
     const int max_mse = 190;
-    if (avg_mse > max_mse)
+    if (isnan(prediction))
+    {
+        printf("\033[31m[-] %s test failed: prediction failed: %f\n", __FILE__, prediction);
+    }
+    else if (avg_mse > max_mse)
     {
         printf("\033[31m[-] %s test failed: the avg mse is bigger then %d : %f , last time it was "
-               "187\n",
+               "182.870529\n",
                __FILE__, max_mse, avg_mse);
     }
     else
     {
-        printf("\033[32m[+] %s passed\033[0m\n", __FILE__);
+        printf("\033[32m[+] %s \t\tpassed %f\033[0m\n", __FILE__, avg_mse);
     }
     return 0;
 }
