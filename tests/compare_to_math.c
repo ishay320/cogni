@@ -26,14 +26,14 @@ int mine(char* out)
 {
     cog_read_weights(g_filename, w, ARR_LEN(w), b, ARR_LEN(b));
 
-    Neuron* h1 = cog_neuron_init_m(w + 0, b + 0, dw + 0, db + 0, 2, cog_sigmoid, cog_sigmoid_deriv);
-    Neuron* h2 = cog_neuron_init_m(w + 2, b + 1, dw + 2, db + 1, 2, cog_sigmoid, cog_sigmoid_deriv);
-    Neuron* a1 = cog_neuron_init_m(w + 4, b + 2, dw + 4, db + 2, 2, cog_sigmoid, cog_sigmoid_deriv);
+    Neuron* h1 = cog_neuron_init_m(w + 0, b + 0, dw + 0, db + 0, 2);
+    Neuron* h2 = cog_neuron_init_m(w + 2, b + 1, dw + 2, db + 1, 2);
+    Neuron* a1 = cog_neuron_init_m(w + 4, b + 2, dw + 4, db + 2, 2);
 
     // forward pass (prediction)
-    n_out[0] = cog_neuron_forward(h1, xs);
-    n_out[1] = cog_neuron_forward(h2, xs);
-    n_out[2] = cog_neuron_forward(a1, n_out);
+    n_out[0] = cog_sigmoid(cog_neuron_forward(h1, xs));
+    n_out[1] = cog_sigmoid(cog_neuron_forward(h2, xs));
+    n_out[2] = cog_sigmoid(cog_neuron_forward(a1, n_out));
     sprintf(out + strlen(out), "prediction: %f, truth: %f, mse: %f\n", n_out[2], y_true[0],
             cog_mse(n_out[2], y_true[0]));
 
@@ -46,21 +46,24 @@ int mine(char* out)
 
         float d_mse = cog_mse_deriv(y_true[0], n_out[2]);
 
-        cog_neuron_backpropagate(a1, n_out[2], n_out, d_mse);
+        cog_fun_backpropagate(a1, cog_sigmoid_deriv, n_out[2], d_mse);
+        cog_neuron_backpropagate(a1, n_out);
 
         float part_derive[2];
         cog_neuron_part_derive(a1, part_derive);
 
-        cog_neuron_backpropagate(h1, n_out[0], xs, part_derive[0]);
-        cog_neuron_backpropagate(h2, n_out[1], xs, part_derive[1]);
+        cog_fun_backpropagate(h1, cog_sigmoid_deriv, n_out[0], part_derive[0]);
+        cog_neuron_backpropagate(h1, xs);
+        cog_fun_backpropagate(h2, cog_sigmoid_deriv, n_out[1], part_derive[1]);
+        cog_neuron_backpropagate(h2, xs);
 
         // Apply the derives
         cog_apply_derives(w, dw, ARR_LEN(w), b, db, ARR_LEN(b), lr);
 
         // forward pass (prediction)
-        n_out[0] = cog_neuron_forward(h1, xs);
-        n_out[1] = cog_neuron_forward(h2, xs);
-        n_out[2] = cog_neuron_forward(a1, n_out);
+        n_out[0] = cog_sigmoid(cog_neuron_forward(h1, xs));
+        n_out[1] = cog_sigmoid(cog_neuron_forward(h2, xs));
+        n_out[2] = cog_sigmoid(cog_neuron_forward(a1, n_out));
         sprintf(out + strlen(out), "prediction: %f, truth: %f, mse: %f\n", n_out[2], y_true[0],
                 cog_mse(n_out[2], y_true[0]));
     }
