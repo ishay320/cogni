@@ -71,9 +71,7 @@ $$L(w_1,w_2,w_3,w_4,w_5,w_6,b_1,b_2,b_3)$$
 
 - mse derivative: $mse(y_{true}, y_{pred})' = -2(y_{true} - y_{pred})$
 - sigmoid derivative:
-  $$
-  f(x)' = (\frac{1}{1+e^{-x}})' = \frac{e^{-x}}{(1+e^{-x})^2} = f(x)\cdot(1-f(x))
-  $$
+  $f(x)' = (\frac{1}{1+e^{-x}})' = \frac{e^{-x}}{(1+e^{-x})^2} = f(x)\cdot(1-f(x))$
 
 then to derive parameter we will use the chain rule:
 
