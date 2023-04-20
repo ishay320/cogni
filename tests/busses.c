@@ -29,8 +29,10 @@ int main(int argc, char const* argv[])
 
     Layer_Fun lrelu = cog_layer_activision_init(L_RELU);
 
+#if defined(READ_WEIGHTS) || defined(WRITE_WEIGHTS)
     FILE* fp = fopen("busses.w", "r+");
-#if 0
+#endif
+#if defined(READ_WEIGHTS)
     cog_read_weights_p(fp, l1->neurons[0].w, l1->len * l1->neurons[0].w_len, l1->neurons[0].b,
                        l1->len);
     cog_read_weights_p(fp, l2->neurons[0].w, l2->len * l2->neurons[0].w_len, l2->neurons[0].b,
@@ -108,8 +110,8 @@ int main(int argc, char const* argv[])
         fprintf(out, "%f\n", avg_mse);
     }
     fclose(out);
-#if 0
-    // write the weights
+
+#if defined(WRITE_WEIGHTS)
     cog_write_weights_p(fp, l1->neurons[0].w, l1->len * l1->neurons[0].w_len, l1->neurons[0].b,
                         l1->len);
     cog_write_weights_p(fp, l2->neurons[0].w, l2->len * l2->neurons[0].w_len, l2->neurons[0].b,
@@ -119,7 +121,9 @@ int main(int argc, char const* argv[])
     cog_write_weights_p(fp, l4->neurons[0].w, l4->len * l4->neurons[0].w_len, l4->neurons[0].b,
                         l4->len);
 #endif
+#if defined(READ_WEIGHTS) || defined(WRITE_WEIGHTS)
     fclose(fp);
+#endif
 
     float avg_mse = 0;
     for (size_t i = 0; i < rows; i++)
