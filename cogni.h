@@ -49,7 +49,7 @@ typedef struct _Neuron
     float* db;
 } Neuron;
 
-typedef struct Layer
+typedef struct LayerFC
 {
     Neuron* neurons;
     float* inputs;
@@ -58,13 +58,13 @@ typedef struct Layer
     size_t len;
 
     activision last_activision;
-} Layer;
+} LayerFC;
 
-typedef struct Layer_Fun
+typedef struct LayerActivision
 {
     activision fun;
     activision fun_derive;
-} Layer_Fun;
+} LayerActivision;
 
 typedef enum
 {
@@ -115,19 +115,19 @@ COGNI_DEF void cog_apply_derives(float* w, float* dw, size_t w_len, float* b, fl
                                  size_t b_len, float lr);
 
 /* Layers */
-COGNI_DEF Layer* cog_layer_init(size_t in_features, size_t out_features);
-COGNI_DEF void cog_layer_destroy(Layer* layer);
-COGNI_DEF float* cog_layer_run(Layer* layer, const float* xs);
-COGNI_DEF void cog_layer_zero_grad(Layer* layer);
-COGNI_DEF void cog_layer_backpropagate(Layer* layer, const float* partial_derive);
-COGNI_DEF void cog_layer_part_derive(Layer* layer);
-COGNI_DEF void cog_layer_apply_derives(Layer* layer, float lr);
+COGNI_DEF LayerFC* cog_layer_init(size_t in_features, size_t out_features);
+COGNI_DEF void cog_layer_destroy(LayerFC* layer);
+COGNI_DEF float* cog_layer_run(LayerFC* layer, const float* xs);
+COGNI_DEF void cog_layer_zero_grad(LayerFC* layer);
+COGNI_DEF void cog_layer_backpropagate(LayerFC* layer, const float* partial_derive);
+COGNI_DEF void cog_layer_part_derive(LayerFC* layer);
+COGNI_DEF void cog_layer_apply_derives(LayerFC* layer, float lr);
 
-COGNI_DEF Layer_Fun cog_layer_activision_init(Activision_type type);
-COGNI_DEF float* cog_layer_activate(const Layer_Fun fun, Layer* layer);
+COGNI_DEF LayerActivision cog_layer_activision_init(Activision_type type);
+COGNI_DEF float* cog_layer_activate(const LayerActivision fun, LayerFC* layer);
 
 /* Printing and debug */
-COGNI_DEF void cog_print_layer(const Layer* layer, bool print_derive, const char* layer_name);
+COGNI_DEF void cog_print_layer(const LayerFC* layer, bool print_derive, const char* layer_name);
 COGNI_DEF void cog_print_array(float* array, size_t len, const char* format, ...);
 
 COGNI_DEF void cog_array_rand_f(float* array, size_t len, float min, float max);
@@ -348,7 +348,7 @@ COGNI_DEF void cog_apply_derives(float* w, float* dw, size_t w_len, float* b, fl
     }
 }
 
-COGNI_DEF void cog_layer_zero_grad(Layer* layer)
+COGNI_DEF void cog_layer_zero_grad(LayerFC* layer)
 {
     memset(layer->neurons[0].dw, 0,
            (sizeof layer->neurons[0].dw[0]) * layer->neurons[0].w_len * layer->len);
@@ -356,9 +356,9 @@ COGNI_DEF void cog_layer_zero_grad(Layer* layer)
 }
 
 /* use malloc on return value - use layer_destroy*/
-COGNI_DEF Layer* cog_layer_init(size_t in_features, size_t out_features)
+COGNI_DEF LayerFC* cog_layer_init(size_t in_features, size_t out_features)
 {
-    Layer* layer = malloc(sizeof(Layer));
+    LayerFC* layer = malloc(sizeof(LayerFC));
     if (layer == NULL)
     {
         fprintf(stderr, "ERROR: could not malloc layer\n");
@@ -404,7 +404,7 @@ COGNI_DEF Layer* cog_layer_init(size_t in_features, size_t out_features)
     return layer;
 }
 
-COGNI_DEF void cog_layer_destroy(Layer* layer)
+COGNI_DEF void cog_layer_destroy(LayerFC* layer)
 {
     if (layer == NULL)
     {
@@ -430,7 +430,7 @@ COGNI_DEF void cog_layer_destroy(Layer* layer)
     free(layer);
 }
 
-COGNI_DEF float* cog_layer_run(Layer* layer, const float* xs)
+COGNI_DEF float* cog_layer_run(LayerFC* layer, const float* xs)
 {
     if (layer->len == 0)
     {
@@ -448,7 +448,7 @@ COGNI_DEF float* cog_layer_run(Layer* layer, const float* xs)
     return layer->outputs;
 }
 
-COGNI_DEF void cog_layer_backpropagate(Layer* layer, const float* partial_derive)
+COGNI_DEF void cog_layer_backpropagate(LayerFC* layer, const float* partial_derive)
 {
     for (size_t n = 0; n < layer->len; n++)
     {
@@ -458,7 +458,7 @@ COGNI_DEF void cog_layer_backpropagate(Layer* layer, const float* partial_derive
     }
 }
 
-COGNI_DEF void cog_layer_part_derive(Layer* layer)
+COGNI_DEF void cog_layer_part_derive(LayerFC* layer)
 {
     for (size_t i = 0; i < layer->len; i++)
     {
@@ -467,7 +467,7 @@ COGNI_DEF void cog_layer_part_derive(Layer* layer)
     }
 }
 
-COGNI_DEF void cog_layer_apply_derives(Layer* layer, float lr)
+COGNI_DEF void cog_layer_apply_derives(LayerFC* layer, float lr)
 {
     for (size_t i = 0; i < layer->len; i++)
     {
@@ -477,14 +477,14 @@ COGNI_DEF void cog_layer_apply_derives(Layer* layer, float lr)
     }
 }
 
-COGNI_DEF Layer_Fun cog_layer_activision_init(Activision_type type)
+COGNI_DEF LayerActivision cog_layer_activision_init(Activision_type type)
 {
-    Layer_Fun layer = {.fun        = c_activision_index[type].fun,
-                       .fun_derive = c_activision_index[type].fun_derive};
+    LayerActivision layer = {.fun        = c_activision_index[type].fun,
+                             .fun_derive = c_activision_index[type].fun_derive};
     return layer;
 }
 
-COGNI_DEF float* cog_layer_activate(const Layer_Fun fun, Layer* layer)
+COGNI_DEF float* cog_layer_activate(const LayerActivision fun, LayerFC* layer)
 {
     for (size_t i = 0; i < layer->len; i++)
     {
@@ -509,7 +509,7 @@ COGNI_DEF void cog_print_array(float* array, size_t len, const char* format, ...
     printf("\n");
 }
 
-COGNI_DEF void cog_print_layer(const Layer* layer, bool print_derive, const char* layer_name)
+COGNI_DEF void cog_print_layer(const LayerFC* layer, bool print_derive, const char* layer_name)
 {
     printf("%s:\n", layer_name);
     printf("| ");

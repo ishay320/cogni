@@ -22,12 +22,12 @@ int main(int argc, char const* argv[])
     }
     ys = &xs[y_stride - 1];
 
-    Layer* l1 = cog_layer_init(4, 8);
-    Layer* l2 = cog_layer_init(8, 7);
-    Layer* l3 = cog_layer_init(7, 5);
-    Layer* l4 = cog_layer_init(5, 1);
+    LayerFC* l1 = cog_layer_init(4, 8);
+    LayerFC* l2 = cog_layer_init(8, 7);
+    LayerFC* l3 = cog_layer_init(7, 5);
+    LayerFC* l4 = cog_layer_init(5, 1);
 
-    Layer_Fun lrelu = cog_layer_activision_init(L_RELU);
+    LayerActivision lrelu = cog_layer_activision_init(L_RELU);
 
 #if defined(READ_WEIGHTS) || defined(WRITE_WEIGHTS)
     FILE* fp = fopen("busses.w", "r+");
@@ -54,7 +54,6 @@ int main(int argc, char const* argv[])
         for (size_t pos = 0; pos < rows; pos++)
         {
             // forward pass (prediction)
-            // TODO: get the out of the neuron to the layer
             cog_layer_run(l1, xs + (pos * y_stride));
             cog_layer_activate(lrelu, l1);
             cog_layer_run(l2, l1->outputs);
