@@ -47,7 +47,7 @@ int main(int argc, char const* argv[])
 
     float prediction    = 0;
     const size_t epochs = 500;
-    const float lr      = 0.00005;
+    const float lr      = 0.0001;
     for (size_t epoch = 0; epoch < epochs; epoch++)
     {
         cog_layer_zero_grad(l1);
@@ -162,7 +162,7 @@ int main(int argc, char const* argv[])
     else if (avg_mse > max_mse)
     {
         printf("\033[31m[-] %s test failed: the avg mse is bigger then %d : %f , last time it was "
-               "182.870529\n",
+               "188.377151\n",
                __FILE__, max_mse, avg_mse);
     }
     else
