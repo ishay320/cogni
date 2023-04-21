@@ -50,6 +50,11 @@ int main(int argc, char const* argv[])
     const float lr      = 0.00005;
     for (size_t epoch = 0; epoch < epochs; epoch++)
     {
+        cog_layer_zero_grad(l1);
+        cog_layer_zero_grad(l2);
+        cog_layer_zero_grad(l3);
+        cog_layer_zero_grad(l4);
+
         float avg_mse = 0;
         for (size_t pos = 0; pos < rows; pos++)
         {
@@ -85,27 +90,22 @@ int main(int argc, char const* argv[])
         cog_print_layer(l4, false, "l4");
 #endif
 
-            cog_layer_zero_grad(l1);
-            cog_layer_zero_grad(l2);
-            cog_layer_zero_grad(l3);
-            cog_layer_zero_grad(l4);
-
             // Derive layers
             const float d_mse = cog_mse_deriv(trues, prediction);
-            cog_layer_backpropagate(l4, &d_mse);
+            cog_layer_backpropagate_batch(l4, &d_mse, rows);
             cog_layer_part_derive(l4);
-            cog_layer_backpropagate(l3, l4->part_derive);
+            cog_layer_backpropagate_batch(l3, l4->part_derive, rows);
             cog_layer_part_derive(l3);
-            cog_layer_backpropagate(l2, l3->part_derive);
+            cog_layer_backpropagate_batch(l2, l3->part_derive, rows);
             cog_layer_part_derive(l2);
-            cog_layer_backpropagate(l1, l2->part_derive);
-
-            // Apply the derives
-            cog_layer_apply_derives(l1, lr);
-            cog_layer_apply_derives(l2, lr);
-            cog_layer_apply_derives(l3, lr);
-            cog_layer_apply_derives(l4, lr);
+            cog_layer_backpropagate_batch(l1, l2->part_derive, rows);
         }
+        // Apply the derives
+        cog_layer_apply_derives(l1, lr);
+        cog_layer_apply_derives(l2, lr);
+        cog_layer_apply_derives(l3, lr);
+        cog_layer_apply_derives(l4, lr);
+
         fprintf(out, "%f\n", avg_mse);
     }
     fclose(out);

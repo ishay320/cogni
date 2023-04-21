@@ -108,6 +108,7 @@ COGNI_DEF float cog_neuron_forward(Neuron* neuron, const float* xs);
 COGNI_DEF void cog_fun_backpropagate(Neuron* neuron, activision fun, float last_out,
                                      float part_derive);
 COGNI_DEF void cog_neuron_backpropagate(Neuron* neuron, const float* xs);
+COGNI_DEF void cog_neuron_backpropagate_batch(Neuron* neuron, const float* xs, size_t batch_size);
 
 COGNI_DEF void cog_neuron_part_derive(Neuron* neuron, float* part_derives);
 
@@ -120,6 +121,8 @@ COGNI_DEF void cog_layer_destroy(LayerFC* layer);
 COGNI_DEF float* cog_layer_run(LayerFC* layer, const float* xs);
 COGNI_DEF void cog_layer_zero_grad(LayerFC* layer);
 COGNI_DEF void cog_layer_backpropagate(LayerFC* layer, const float* partial_derive);
+COGNI_DEF void cog_layer_backpropagate_batch(LayerFC* layer, const float* partial_derive,
+                                             size_t batch_size);
 COGNI_DEF void cog_layer_part_derive(LayerFC* layer);
 COGNI_DEF void cog_layer_apply_derives(LayerFC* layer, float lr);
 
@@ -326,6 +329,15 @@ COGNI_DEF void cog_neuron_backpropagate(Neuron* neuron, const float* xs)
     *neuron->db = neuron->base_derive;
 }
 
+COGNI_DEF void cog_neuron_backpropagate_batch(Neuron* neuron, const float* xs, size_t batch_size)
+{
+    for (size_t i = 0; i < neuron->w_len; i++)
+    {
+        neuron->dw[i] += (neuron->base_derive * xs[i]) / batch_size;
+    }
+    *neuron->db += neuron->base_derive / batch_size;
+}
+
 COGNI_DEF void cog_neuron_part_derive(Neuron* neuron, float* part_derives)
 {
     for (size_t i = 0; i < neuron->w_len; i++)
@@ -455,6 +467,17 @@ COGNI_DEF void cog_layer_backpropagate(LayerFC* layer, const float* partial_deri
         cog_fun_backpropagate(&layer->neurons[n], layer->last_activision, layer->outputs[n],
                               partial_derive[n]);
         cog_neuron_backpropagate(&layer->neurons[n], layer->inputs);
+    }
+}
+
+COGNI_DEF void cog_layer_backpropagate_batch(LayerFC* layer, const float* partial_derive,
+                                             size_t batch_size)
+{
+    for (size_t n = 0; n < layer->len; n++)
+    {
+        cog_fun_backpropagate(&layer->neurons[n], layer->last_activision, layer->outputs[n],
+                              partial_derive[n]);
+        cog_neuron_backpropagate_batch(&layer->neurons[n], layer->inputs, batch_size);
     }
 }
 
